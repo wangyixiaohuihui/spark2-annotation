@@ -1,0 +1,26 @@
+products:
+   F:\gitwork\spark\spark-2.2.0\common\network-yarn\src\main\java\org\apache\spark\network\yarn\util\HadoopConfigProvider.java -> F:\gitwork\spark\spark-2.2.0\common\network-yarn\target\scala-2.11\classes\org\apache\spark\network\yarn\util\HadoopConfigProvider.class
+   F:\gitwork\spark\spark-2.2.0\common\network-yarn\src\main\java\org\apache\spark\network\yarn\YarnShuffleService.java -> F:\gitwork\spark\spark-2.2.0\common\network-yarn\target\scala-2.11\classes\org\apache\spark\network\yarn\YarnShuffleService$AppId.class
+   F:\gitwork\spark\spark-2.2.0\common\network-yarn\src\main\java\org\apache\spark\network\yarn\YarnShuffleService.java -> F:\gitwork\spark\spark-2.2.0\common\network-yarn\target\scala-2.11\classes\org\apache\spark\network\yarn\YarnShuffleService.class
+binary dependencies:
+   F:\gitwork\spark\spark-2.2.0\common\network-yarn\src\main\java\org\apache\spark\network\yarn\util\HadoopConfigProvider.java -> D:\Program Files\java\jdk8\jre\lib\rt.jar
+   F:\gitwork\spark\spark-2.2.0\common\network-yarn\src\main\java\org\apache\spark\network\yarn\util\HadoopConfigProvider.java -> F:\gitwork\spark\spark-2.2.0\common\network-common\target\spark-network-common_2.11-2.2.0.jar
+   F:\gitwork\spark\spark-2.2.0\common\network-yarn\src\main\java\org\apache\spark\network\yarn\util\HadoopConfigProvider.java -> f:\local\repo\org\apache\hadoop\hadoop-common\2.7.3\hadoop-common-2.7.3.jar
+   F:\gitwork\spark\spark-2.2.0\common\network-yarn\src\main\java\org\apache\spark\network\yarn\YarnShuffleService.java -> D:\Program Files\java\jdk8\jre\lib\rt.jar
+   F:\gitwork\spark\spark-2.2.0\common\network-yarn\src\main\java\org\apache\spark\network\yarn\YarnShuffleService.java -> F:\gitwork\spark\spark-2.2.0\common\network-common\target\spark-network-common_2.11-2.2.0.jar
+   F:\gitwork\spark\spark-2.2.0\common\network-yarn\src\main\java\org\apache\spark\network\yarn\YarnShuffleService.java -> F:\gitwork\spark\spark-2.2.0\common\network-shuffle\target\spark-network-shuffle_2.11-2.2.0.jar
+   F:\gitwork\spark\spark-2.2.0\common\network-yarn\src\main\java\org\apache\spark\network\yarn\YarnShuffleService.java -> f:\local\repo\com\fasterxml\jackson\core\jackson-databind\2.6.5\jackson-databind-2.6.5.jar
+   F:\gitwork\spark\spark-2.2.0\common\network-yarn\src\main\java\org\apache\spark\network\yarn\YarnShuffleService.java -> f:\local\repo\com\google\guava\guava\14.0.1\guava-14.0.1.jar
+   F:\gitwork\spark\spark-2.2.0\common\network-yarn\src\main\java\org\apache\spark\network\yarn\YarnShuffleService.java -> f:\local\repo\org\apache\hadoop\hadoop-common\2.7.3\hadoop-common-2.7.3.jar
+   F:\gitwork\spark\spark-2.2.0\common\network-yarn\src\main\java\org\apache\spark\network\yarn\YarnShuffleService.java -> f:\local\repo\org\apache\hadoop\hadoop-yarn-api\2.7.3\hadoop-yarn-api-2.7.3.jar
+   F:\gitwork\spark\spark-2.2.0\common\network-yarn\src\main\java\org\apache\spark\network\yarn\YarnShuffleService.java -> f:\local\repo\org\fusesource\leveldbjni\leveldbjni-all\1.8\leveldbjni-all-1.8.jar
+   F:\gitwork\spark\spark-2.2.0\common\network-yarn\src\main\java\org\apache\spark\network\yarn\YarnShuffleService.java -> f:\local\repo\org\slf4j\slf4j-api\1.7.16\slf4j-api-1.7.16.jar
+source dependencies:
+   F:\gitwork\spark\spark-2.2.0\common\network-yarn\src\main\java\org\apache\spark\network\yarn\util\HadoopConfigProvider.java -> F:\gitwork\spark\spark-2.2.0\common\network-yarn\src\main\java\org\apache\spark\network\yarn\util\HadoopConfigProvider.java
+   F:\gitwork\spark\spark-2.2.0\common\network-yarn\src\main\java\org\apache\spark\network\yarn\YarnShuffleService.java -> F:\gitwork\spark\spark-2.2.0\common\network-yarn\src\main\java\org\apache\spark\network\yarn\YarnShuffleService.java
+   F:\gitwork\spark\spark-2.2.0\common\network-yarn\src\main\java\org\apache\spark\network\yarn\YarnShuffleService.java -> F:\gitwork\spark\spark-2.2.0\common\network-yarn\src\main\java\org\apache\spark\network\yarn\util\HadoopConfigProvider.java
+external dependencies:
+class names:
+   F:\gitwork\spark\spark-2.2.0\common\network-yarn\src\main\java\org\apache\spark\network\yarn\util\HadoopConfigProvider.java -> org.apache.spark.network.yarn.util.HadoopConfigProvider
+   F:\gitwork\spark\spark-2.2.0\common\network-yarn\src\main\java\org\apache\spark\network\yarn\YarnShuffleService.java -> org.apache.spark.network.yarn.YarnShuffleService
+   F:\gitwork\spark\spark-2.2.0\common\network-yarn\src\main\java\org\apache\spark\network\yarn\YarnShuffleService.java -> org.apache.spark.network.yarn.YarnShuffleService$AppId
