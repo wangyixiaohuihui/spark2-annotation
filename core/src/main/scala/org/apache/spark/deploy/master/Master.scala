@@ -654,20 +654,26 @@ private[deploy] class Master(
 
   /**
    * Schedule and launch executors on workers
+   *  启动 worker 上  executor App FIFO
    */
   private def startExecutorsOnWorkers(): Unit = {
     // Right now this is a very simple FIFO scheduler. We keep trying to fit in the first app
     // in the queue, then the second app, etc.
     for (app <- waitingApps if app.coresLeft > 0) {
+      // executor 上所需的最小core 数量 默认为1
       val coresPerExecutor: Option[Int] = app.desc.coresPerExecutor
       // Filter out workers that don't have enough resources to launch an executor
+      // live 状态的worker  内存满足的 core数满足的 根据worker 的cores 数量排序
       val usableWorkers = workers.toArray.filter(_.state == WorkerState.ALIVE)
         .filter(worker => worker.memoryFree >= app.desc.memoryPerExecutorMB &&
           worker.coresFree >= coresPerExecutor.getOrElse(1))
         .sortBy(_.coresFree).reverse
+
+      // 在筛选出来的 worker 列表中按照一定的策略分配 executor
       val assignedCores = scheduleExecutorsOnWorkers(app, usableWorkers, spreadOutApps)
 
       // Now that we've decided how many cores to allocate on each worker, let's allocate them
+      // 按照指定的策略  在选中的worker 中启动executor
       for (pos <- 0 until usableWorkers.length if assignedCores(pos) > 0) {
         allocateWorkerResourceToExecutors(
           app, assignedCores(pos), coresPerExecutor, usableWorkers(pos))
@@ -702,32 +708,42 @@ private[deploy] class Master(
   /**
    * Schedule the currently available resources among waiting apps. This method will be called
    * every time a new app joins or resource availability changes.
+   * executor 资源分配策略
    */
   private def schedule(): Unit = {
     if (state != RecoveryState.ALIVE) {
       return
     }
     // Drivers take strict precedence over executors
+    // 将当前spark集群 中alive 状态的worker 重新打乱顺序， 避免多次选择worker 时 每次都从同一个worker  开始
     val shuffledAliveWorkers = Random.shuffle(workers.toSeq.filter(_.state == WorkerState.ALIVE))
+
     val numWorkersAlive = shuffledAliveWorkers.size
-    var curPos = 0
+    var curPos = 0  // 当前尝试到的worker 的序号
+    // 遍历点当前所有的处于等待的driver
     for (driver <- waitingDrivers.toList) { // iterate over a copy of waitingDrivers
       // We assign workers to each waiting driver in a round-robin fashion. For each driver, we
       // start from the last worker that was assigned a driver, and continue onwards until we have
       // explored all alive workers.
-      var launched = false
+      var launched = false // driver 是否启动的标志
       var numWorkersVisited = 0
+      // 当前尝试的worker 的次数 < 当前处于 alive 状态下的 worker 数量  && driver 没有启动起来
       while (numWorkersVisited < numWorkersAlive && !launched) {
+        // 按顺序出一个worker
         val worker = shuffledAliveWorkers(curPos)
+        // worker 尝试次数 +1
         numWorkersVisited += 1
+        // 如果当前worker 可用的内存 > driver 设置的内存数 && worker 的可用核数 > driver 设置的内核的数量
         if (worker.memoryFree >= driver.desc.mem && worker.coresFree >= driver.desc.cores) {
+          // 启动driver
           launchDriver(worker, driver)
-          waitingDrivers -= driver
-          launched = true
+          waitingDrivers -= driver // 从的等待的driver 中一处该driver
+          launched = true // 该driver 标记为已经启动
         }
         curPos = (curPos + 1) % numWorkersAlive
       }
     }
+    // 启动executor
     startExecutorsOnWorkers()
   }
 
