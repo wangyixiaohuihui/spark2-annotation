@@ -40,6 +40,7 @@ import org.apache.spark.rpc._
 import org.apache.spark.serializer.{JavaSerializer, JavaSerializerInstance, SerializationStream}
 import org.apache.spark.util.{ByteBufferInputStream, ByteBufferOutputStream, ThreadUtils, Utils}
 
+// 创建nettyEnv
 private[netty] class NettyRpcEnv(
     val conf: SparkConf,
     javaSerializerInstance: JavaSerializerInstance,
@@ -51,8 +52,10 @@ private[netty] class NettyRpcEnv(
     "rpc",
     conf.getInt("spark.rpc.io.threads", 0))
 
+  // Dispatcher负责RPC消息的路由，它能够将消息路由到对应的RpcEndpoint进行处理,同时存放RpcEndPoint与RpcEndPointRef的映射
   private val dispatcher: Dispatcher = new Dispatcher(this)
 
+  //  负责提供文件服务（文件、JAR文件、目录）
   private val streamManager = new NettyStreamManager(this)
 
   private val transportContext = new TransportContext(transportConf,

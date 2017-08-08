@@ -74,6 +74,7 @@ private[spark] abstract class RpcEnv(conf: SparkConf) {
   /**
    * Return RpcEndpointRef of the registered [[RpcEndpoint]]. Will be used to implement
    * [[RpcEndpoint.self]]. Return `null` if the corresponding [[RpcEndpointRef]] does not exist.
+   *  返回 RpcEndpointRef  创建 RpcEndpoint 的引用
    */
   private[rpc] def endpointRef(endpoint: RpcEndpoint): RpcEndpointRef
 

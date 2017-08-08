@@ -29,7 +29,7 @@ private[spark] trait RpcEnvFactory {
 }
 
 /**
- * An end point for the RPC that defines what functions to trigger given a message.
+ * An end point for the RPC that defines what functions to trigger(触发) given a message.
  *
  * It is guaranteed that `onStart`, `receive` and `onStop` will be called in sequence.
  *
