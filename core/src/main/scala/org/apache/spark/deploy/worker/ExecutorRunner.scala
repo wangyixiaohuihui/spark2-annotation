@@ -138,6 +138,7 @@ private[deploy] class ExecutorRunner(
 
   /**
    * Download and run the executor described in our ApplicationDescription
+   *  启动 executor
    */
   private def fetchAndRunExecutor() {
     try {
