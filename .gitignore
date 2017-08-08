@@ -15,6 +15,7 @@
 .ensime_lucene
 .generated-mima*
 .idea/
+*iml
 .idea_modules/
 .project
 .pydevproject
@@ -88,3 +89,5 @@ spark-warehouse/
 *.Rproj.*
 
 .Rproj.user
+
+
