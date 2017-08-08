@@ -1,5 +1,7 @@
 # Apache Spark
 
+mvn -DskipTests -Phadoop-2.7 -Phive -Phive-thriftserver  -Dhadoop.version=2.7.3 -Pyarn  clean package
+
 Spark is a fast and general cluster computing system for Big Data. It provides
 high-level APIs in Scala, Java, Python, and R, and an optimized engine that
 supports general computation graphs for data analysis. It also supports a
