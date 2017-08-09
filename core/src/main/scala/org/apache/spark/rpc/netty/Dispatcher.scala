@@ -32,7 +32,12 @@ import org.apache.spark.util.ThreadUtils
 
 /**
  * A message dispatcher, responsible for routing RPC messages to the appropriate endpoint(s).
+ *  Dispatcher中维护
+ *    1  注册RpcEndpoint 到 NettyRpcEndpointRef 的消息信箱
+ *    2  注册RpcEndpoint 和 NettyRpcEndpointRef的对应关系
+ *    3  注册 处理消息信箱的队列
  */
+
 private[netty] class Dispatcher(nettyEnv: NettyRpcEnv) extends Logging {
 
   private class EndpointData(
@@ -42,10 +47,8 @@ private[netty] class Dispatcher(nettyEnv: NettyRpcEnv) extends Logging {
     val inbox = new Inbox(ref, endpoint)
   }
 
-  private val endpoints: ConcurrentMap[String, EndpointData] =
-    new ConcurrentHashMap[String, EndpointData]
-  private val endpointRefs: ConcurrentMap[RpcEndpoint, RpcEndpointRef] =
-    new ConcurrentHashMap[RpcEndpoint, RpcEndpointRef]
+  private val endpoints: ConcurrentMap[String, EndpointData] =  new ConcurrentHashMap[String, EndpointData]
+  private val endpointRefs: ConcurrentMap[RpcEndpoint, RpcEndpointRef] =  new ConcurrentHashMap[RpcEndpoint, RpcEndpointRef]
 
   // Track the receivers whose inboxes may contain messages.
   private val receivers = new LinkedBlockingQueue[EndpointData]
@@ -187,7 +190,10 @@ private[netty] class Dispatcher(nettyEnv: NettyRpcEnv) extends Logging {
     endpoints.containsKey(name)
   }
 
-  /** Thread pool used for dispatching messages. */
+  /** Thread pool used for dispatching messages.
+    *
+    * Dispatcher中创建一个线程池，用于接收处理消息（分离消息），默认是两线程
+    * */
   private val threadpool: ThreadPoolExecutor = {
     val numThreads = nettyEnv.conf.getInt("spark.rpc.netty.dispatcher.numThreads",
       math.max(2, Runtime.getRuntime.availableProcessors()))
@@ -198,18 +204,22 @@ private[netty] class Dispatcher(nettyEnv: NettyRpcEnv) extends Logging {
     pool
   }
 
-  /** Message loop used for dispatching messages. */
+  /** Message loop used for dispatching messages.
+    * 分发消息
+    * */
   private class MessageLoop extends Runnable {
     override def run(): Unit = {
       try {
         while (true) {
           try {
+             //  如果receivers 为空，线程会阻塞在
             val data = receivers.take()
             if (data == PoisonPill) {
               // Put PoisonPill back so that other MessageLoops can see it.
               receivers.offer(PoisonPill)
               return
             }
+            // 调用消息信箱 process方法处理
             data.inbox.process(Dispatcher.this)
           } catch {
             case NonFatal(e) => logError(e.getMessage, e)
@@ -221,6 +231,8 @@ private[netty] class Dispatcher(nettyEnv: NettyRpcEnv) extends Logging {
     }
   }
 
-  /** A poison endpoint that indicates MessageLoop should exit its message loop. */
+  /** A poison (自杀消息) endpoint that indicates MessageLoop should exit its message loop.
+    * 创建了一个EndpointData 默认对象
+    * */
   private val PoisonPill = new EndpointData(null, null, null)
 }

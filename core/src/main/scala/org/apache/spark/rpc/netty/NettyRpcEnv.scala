@@ -41,6 +41,7 @@ import org.apache.spark.serializer.{JavaSerializer, JavaSerializerInstance, Seri
 import org.apache.spark.util.{ByteBufferInputStream, ByteBufferOutputStream, ThreadUtils, Utils}
 
 // 创建nettyEnv
+// Rpc通信的上下文环境，消息发送过来首先经过RpcEnv然后路由给对应的RpcEndPoint，得到RpcEndPoint
 private[netty] class NettyRpcEnv(
     val conf: SparkConf,
     javaSerializerInstance: JavaSerializerInstance,
@@ -53,6 +54,7 @@ private[netty] class NettyRpcEnv(
     conf.getInt("spark.rpc.io.threads", 0))
 
   // Dispatcher负责RPC消息的路由，它能够将消息路由到对应的RpcEndpoint进行处理,同时存放RpcEndPoint与RpcEndPointRef的映射
+  // 初始化分离器
   private val dispatcher: Dispatcher = new Dispatcher(this)
 
   //  负责提供文件服务（文件、JAR文件、目录）
@@ -111,6 +113,11 @@ private[netty] class NettyRpcEnv(
     }
   }
 
+  /**
+    *  启动监听服务
+    * @param bindAddress 绑定地址
+    * @param port 端口
+    */
   def startServer(bindAddress: String, port: Int): Unit = {
     val bootstraps: java.util.List[TransportServerBootstrap] =
       if (securityManager.isAuthenticationEnabled()) {
@@ -119,6 +126,7 @@ private[netty] class NettyRpcEnv(
         java.util.Collections.emptyList()
       }
     server = transportContext.createServer(bindAddress, port, bootstraps)
+    // 起动服务后在分离器上注册了一个RpcEndpoint
     dispatcher.registerRpcEndpoint(
       RpcEndpointVerifier.NAME, new RpcEndpointVerifier(this, dispatcher))
   }
@@ -447,6 +455,7 @@ private[rpc] class NettyRpcEnvFactory extends RpcEnvFactory with Logging {
     val sparkConf = config.conf
     // Use JavaSerializerInstance in multiple threads is safe. However, if we plan to support
     // KryoSerializer in future, we have to use ThreadLocal to store SerializerInstance
+    // 初始化序列化实例，因为RpcEnv涉及网络传输对象，因此需要统一的序列化和反序列化
     val javaSerializerInstance =
       new JavaSerializer(sparkConf).newInstance().asInstanceOf[JavaSerializerInstance]
     val nettyEnv =
@@ -458,6 +467,7 @@ private[rpc] class NettyRpcEnvFactory extends RpcEnvFactory with Logging {
         (nettyEnv, nettyEnv.address.port)
       }
       try {
+        //  启动监听端口的服务
         Utils.startServiceOnPort(config.port, startNettyRpcEnv, sparkConf, config.name)._1
       } catch {
         case NonFatal(e) =>

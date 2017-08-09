@@ -53,7 +53,9 @@ private[netty] case class RemoteProcessConnectionError(cause: Throwable, remoteA
 
 /**
  * An inbox that stores messages for an [[RpcEndpoint]] and posts messages to it thread-safely.
-  * inbox  存储消息
+ *  inbox  存储消息
+ *
+ *
  */
 private[netty] class Inbox(
     val endpointRef: NettyRpcEndpointRef,
@@ -78,6 +80,7 @@ private[netty] class Inbox(
   private var numActiveThreads = 0
 
   // OnStart should be the first message to process
+  // 构造消息时  向消息队列中添加一下默认消息OnStart
   inbox.synchronized {
     messages.add(OnStart)
   }
