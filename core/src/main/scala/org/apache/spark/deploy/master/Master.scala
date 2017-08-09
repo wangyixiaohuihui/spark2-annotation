@@ -1105,6 +1105,7 @@ private[deploy] object Master extends Logging {
     // master中RpcEnv 创建的入口
     val rpcEnv = RpcEnv.create(SYSTEM_NAME, host, port, conf, securityMgr)
 
+    // 利用之前创建的rpcEnv 来创建RpcEndpoint
     val masterEndpoint = rpcEnv.setupEndpoint(ENDPOINT_NAME,
       new Master(rpcEnv, rpcEnv.address, webUiPort, securityMgr, conf))
     val portsResponse = masterEndpoint.askSync[BoundPortsResponse](BoundPortsRequest)

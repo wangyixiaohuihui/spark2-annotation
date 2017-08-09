@@ -60,6 +60,12 @@ private[netty] class Dispatcher(nettyEnv: NettyRpcEnv) extends Logging {
   @GuardedBy("this")
   private var stopped = false
 
+  /**
+    *  注冊rpcendpoint
+    * @param name  名称
+    * @param endpoint
+    * @return
+    */
   def registerRpcEndpoint(name: String, endpoint: RpcEndpoint): NettyRpcEndpointRef = {
     val addr = RpcEndpointAddress(nettyEnv.address, name)
     val endpointRef = new NettyRpcEndpointRef(nettyEnv.conf, addr, nettyEnv)
@@ -72,6 +78,7 @@ private[netty] class Dispatcher(nettyEnv: NettyRpcEnv) extends Logging {
       }
       val data = endpoints.get(name)
       endpointRefs.put(data.endpoint, data.ref)
+      // receivers中有元素了，于是一个线程会 被唤醒，处理OnStart消息
       receivers.offer(data)  // for the OnStart message
     }
     endpointRef
