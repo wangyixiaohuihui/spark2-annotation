@@ -28,6 +28,7 @@ import org.apache.spark.storage.BlockManagerMessages._
 import org.apache.spark.util.{RpcUtils, ThreadUtils}
 
 private[spark]
+// 对整个集群的Block数据进行管理的
 class BlockManagerMaster(
     var driverEndpoint: RpcEndpointRef,
     conf: SparkConf,

@@ -45,9 +45,11 @@ class BlockManagerMasterEndpoint(
   extends ThreadSafeRpcEndpoint with Logging {
 
   // Mapping from block manager id to the block manager's information.
+  //  记录了BlockManagerId与BlockManagerInfo的映射
   private val blockManagerInfo = new mutable.HashMap[BlockManagerId, BlockManagerInfo]
 
   // Mapping from executor ID to block manager ID.
+  // executor与blockManager的映射
   private val blockManagerIdByExecutor = new mutable.HashMap[String, BlockManagerId]
 
   // Mapping from block id to the set of block managers that have the block.
@@ -336,6 +338,10 @@ class BlockManagerMasterEndpoint(
 
   /**
    * Returns the BlockManagerId with topology information populated, if available.
+   *  BlockManager 的注册
+   *
+   * 当BlockManager 创建时  生成一个不包含 block 拓扑信息的 BlockManagerId  并且注册到 BlockManagerMaster 中
+   *  BlockManagerMaster 返回一个Id
    */
   private def register(
       idWithoutTopologyInfo: BlockManagerId,
@@ -351,7 +357,11 @@ class BlockManagerMasterEndpoint(
       topologyMapper.getTopologyForHost(idWithoutTopologyInfo.host))
 
     val time = System.currentTimeMillis()
+    // 如果没有注册过，则去注册blockManager
     if (!blockManagerInfo.contains(id)) {
+      // BlockManagerId包含有成员变量executorID，通过BlockManagerId找到executorID
+      // 然后判断该executorID是否存在，如果存在，那么将存在的该executorid对应的BlockManagerId移除
+      // 因为此处是在!blockManagerInfo.contains(id)这个条件下，所以必须没有该executorid对应的BlockManagerId
       blockManagerIdByExecutor.get(id.executorId) match {
         case Some(oldId) =>
           // A block manager of the same executor already exists, so remove it (assumed dead)
@@ -362,9 +372,10 @@ class BlockManagerMasterEndpoint(
       }
       logInfo("Registering block manager %s with %s RAM, %s".format(
         id.hostPort, Utils.bytesToString(maxOnHeapMemSize + maxOffHeapMemSize), id))
-
+      //将新的executorID与BlockManagerId映射起来，key为executorId，value为BlockManagerId
       blockManagerIdByExecutor(id.executorId) = id
 
+      //生成blockManagerInfo与BlockManagerId的映射
       blockManagerInfo(id) = new BlockManagerInfo(
         id, System.currentTimeMillis(), maxOnHeapMemSize, maxOffHeapMemSize, slaveEndpoint)
     }
@@ -373,6 +384,7 @@ class BlockManagerMasterEndpoint(
     id
   }
 
+  // 更新blockInfo
   private def updateBlockInfo(
       blockManagerId: BlockManagerId,
       blockId: BlockId,

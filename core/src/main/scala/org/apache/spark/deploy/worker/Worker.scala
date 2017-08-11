@@ -190,6 +190,9 @@ private[deploy] class Worker(
     }
   }
 
+  /**
+    *  启动 master
+    */
   override def onStart() {
     assert(!registered)
     logInfo("Starting Spark worker %s:%d with %d cores, %s RAM".format(

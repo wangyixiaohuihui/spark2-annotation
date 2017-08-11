@@ -183,6 +183,7 @@ private[spark] class BlockManager(
   private val maxFailuresBeforeLocationRefresh =
     conf.getInt("spark.block.failures.beforeLocationRefresh", 5)
 
+  // slave 通信的 BlockManagerEndpoint
   private val slaveEndpoint = rpcEnv.setupEndpoint(
     "BlockManagerEndpoint" + BlockManager.ID_GENERATOR.next,
     new BlockManagerSlaveEndpoint(rpcEnv, this, mapOutputTracker))
@@ -209,6 +210,8 @@ private[spark] class BlockManager(
    * service if configured.
    */
   def initialize(appId: String): Unit = {
+
+    // 启动 BlockTransferService 和 ShuffleClient
     blockTransferService.init(this)
     shuffleClient.init(appId)
 
@@ -221,9 +224,11 @@ private[spark] class BlockManager(
       ret
     }
 
+    //一个blockManager对应一个executorId，blockTransferService的host，port
     val id =
       BlockManagerId(executorId, blockTransferService.hostName, blockTransferService.port, None)
 
+    // 注册blockManager  向blockManagerMaster
     val idFromMaster = master.registerBlockManager(
       id,
       maxOnHeapMemory,
@@ -532,7 +537,7 @@ private[spark] class BlockManager(
             }
           }
           val ci = CompletionIterator[Any, Iterator[Any]](iterToReturn, {
-            releaseLockAndDispose(blockId, diskData, taskAttemptId)
+            releaseLockAndDispose(blockId, diskData, taskAttemptId)f
           })
           Some(new BlockResult(ci, DataReadMethod.Disk, info.size))
         } else {
@@ -563,8 +568,9 @@ private[spark] class BlockManager(
   /**
    * Get block from the local block manager as serialized bytes.
    *
-   * Must be called while holding a read lock on the block.
+   * Must be called while holding a read lock on the block.  获取读锁
    * Releases the read lock upon exception; keeps the read lock upon successful return.
+   * 取数据的方法doGetLocal
    */
   private def doGetLocalBytes(blockId: BlockId, info: BlockInfo): BlockData = {
     val level = info.level
