@@ -27,6 +27,8 @@ import org.apache.spark.internal.config._
 import org.apache.spark.util.Utils
 
 /**
+ *  LiveListenerBus以异步的方式把SparkListenerEvents传递给注册的SparkListeners。
+ *
  * Asynchronously passes SparkListenerEvents to registered SparkListeners.
  *
  * Until `start()` is called, all posted events are only buffered. Only after this listener bus
@@ -41,7 +43,7 @@ private[spark] class LiveListenerBus(val sparkContext: SparkContext) extends Spa
 
   // Cap the capacity of the event queue so we get an explicit error (rather than
   // an OOM exception) if it's perpetually being added to more quickly than it's being drained.
-  private lazy val EVENT_QUEUE_CAPACITY = validateAndGetQueueSize()
+  private lazy val EVENT_QUEUE_CAPACITY = validateAndGetQueueSize()  //队列的长度 默认10000
   private lazy val eventQueue = new LinkedBlockingQueue[SparkListenerEvent](EVENT_QUEUE_CAPACITY)
 
   private def validateAndGetQueueSize(): Int = {
@@ -70,20 +72,22 @@ private[spark] class LiveListenerBus(val sparkContext: SparkContext) extends Spa
   private val logDroppedEvent = new AtomicBoolean(false)
 
   // A counter that represents the number of events produced and consumed in the queue
-  private val eventLock = new Semaphore(0)
+  private val eventLock = new Semaphore(0)  //这个信号量是为了避免消费者线程空跑
 
   private val listenerThread = new Thread(name) {
     setDaemon(true)
     override def run(): Unit = Utils.tryOrStopSparkContext(sparkContext) {
       LiveListenerBus.withinListenerThread.withValue(true) {
         while (true) {
-          eventLock.acquire()
-          self.synchronized {
+          //获取信号量，没信号量可用时，将进行阻塞
+          eventLock.acquire()  //这个是避免消费者线程空跑的办法，尝试获取这个信号量，当前信号量为0，则阻塞
+          self.synchronized {  //同步的获取队列中的元素
             processingEvent = true
           }
           try {
+            // 事件队列里面获取事件
             val event = eventQueue.poll
-            if (event == null) {
+            if (event == null) {   //event有可能为null，为了避免发生空指针的情况
               // Get out of the while loop and shutdown the daemon thread
               if (!stopped.get) {
                 throw new IllegalStateException("Polling `null` from eventQueue means" +
@@ -91,6 +95,7 @@ private[spark] class LiveListenerBus(val sparkContext: SparkContext) extends Spa
               }
               return
             }
+            // 分发事件
             postToAll(event)
           } finally {
             self.synchronized {
@@ -124,10 +129,12 @@ private[spark] class LiveListenerBus(val sparkContext: SparkContext) extends Spa
       logError(s"$name has already stopped! Dropping event $event")
       return
     }
+    //如果成功加入队列，则在信号量中加一，与之对应，消费者线程就可以消费这个元素
     val eventAdded = eventQueue.offer(event)
     if (eventAdded) {
       eventLock.release()
     } else {
+      //如果队列已满，打出队列满的异常信息
       onDropEvent(event)
       droppedEventsCounter.incrementAndGet()
     }
@@ -195,7 +202,7 @@ private[spark] class LiveListenerBus(val sparkContext: SparkContext) extends Spa
     if (stopped.compareAndSet(false, true)) {
       // Call eventLock.release() so that listenerThread will poll `null` from `eventQueue` and know
       // `stop` is called.
-      eventLock.release()
+      eventLock.release()  //  释放信号量
       listenerThread.join()
     } else {
       // Keep quiet

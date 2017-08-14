@@ -60,6 +60,7 @@ private[spark] trait ListenerBus[L <: AnyRef, E] extends Logging {
     while (iter.hasNext) {
       val listener = iter.next()
       try {
+        // 分发到所有的注册 listener
         doPostEvent(listener, event)
       } catch {
         case NonFatal(e) =>
