@@ -260,6 +260,7 @@ private[spark] abstract class MapOutputTracker(conf: SparkConf) extends Logging 
 
 /**
  * MapOutputTracker for the driver.
+ * 跟踪所有的Mapper的输出的
  */
 private[spark] class MapOutputTrackerMaster(conf: SparkConf,
     broadcastManager: BroadcastManager, isLocal: Boolean)

@@ -139,6 +139,8 @@ private[deploy] class ExecutorRunner(
   /**
    * Download and run the executor described in our ApplicationDescription
    *  启动 executor
+   *  启动 CoarseGrainedExecutorBackend
+   *  由  ProcessBuilder 创建
    */
   private def fetchAndRunExecutor() {
     try {
