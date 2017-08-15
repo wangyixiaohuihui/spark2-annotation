@@ -34,6 +34,8 @@ import org.apache.spark.util.Utils
  * Until `start()` is called, all posted events are only buffered. Only after this listener bus
  * has started will events be actually propagated to all attached listeners. This listener bus
  * is stopped when `stop()` is called, and it will drop further events after stopping.
+ *  保存有消息队列,负责消息的缓存
+ *  保存有注册过的listener,负责消息的分发
  */
 private[spark] class LiveListenerBus(val sparkContext: SparkContext) extends SparkListenerBus {
 
@@ -80,8 +82,8 @@ private[spark] class LiveListenerBus(val sparkContext: SparkContext) extends Spa
       LiveListenerBus.withinListenerThread.withValue(true) {
         while (true) {
           //获取信号量，没信号量可用时，将进行阻塞
-          eventLock.acquire()  //这个是避免消费者线程空跑的办法，尝试获取这个信号量，当前信号量为0，则阻塞
-          self.synchronized {  //同步的获取队列中的元素
+          eventLock.acquire()  // 这个是避免消费者线程空跑的办法，尝试获取这个信号量，当前信号量为0，则阻塞
+          self.synchronized {  // 同步的获取队列中的元素
             processingEvent = true
           }
           try {

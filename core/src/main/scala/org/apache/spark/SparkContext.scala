@@ -73,6 +73,7 @@ import org.apache.spark.util._
 class SparkContext(config: SparkConf) extends Logging {
 
   // The call site where this SparkContext was constructed.
+  // 用户代码中调用spark接口的堆栈信息
   private val creationSite: CallSite = Utils.getCallSite()
 
   // If true, log warnings instead of throwing exceptions when multiple SparkContexts are active
@@ -247,6 +248,7 @@ class SparkContext(config: SparkConf) extends Logging {
   def isStopped: Boolean = stopped.get()
 
   // An asynchronous listener bus for Spark events
+  //  初始化 LiveListenerBus
   private[spark] val listenerBus = new LiveListenerBus(this)
 
   // This function allows components created by SparkEnv to be mocked in unit tests:
@@ -425,6 +427,7 @@ class SparkContext(config: SparkConf) extends Logging {
 
     // "_jobProgressListener" should be set up before creating SparkEnv because when creating
     // "SparkEnv", some messages will be posted to "listenerBus" and we should not miss them.
+    //  JobProgressListener
     _jobProgressListener = new JobProgressListener(_conf)
     listenerBus.addListener(jobProgressListener)
 

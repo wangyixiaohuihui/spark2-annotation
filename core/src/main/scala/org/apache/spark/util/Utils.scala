@@ -61,7 +61,9 @@ import org.apache.spark.internal.config._
 import org.apache.spark.network.util.JavaUtils
 import org.apache.spark.serializer.{DeserializationStream, SerializationStream, SerializerInstance}
 
-/** CallSite represents a place in user code. It can have a short and a long form. */
+/** CallSite represents a place in user code. It can have a short and a long form.
+  *  调用点
+  * */
 private[spark] case class CallSite(shortForm: String, longForm: String)
 
 private[spark] object CallSite {
@@ -1423,7 +1425,9 @@ private[spark] object Utils extends Logging {
    * When called inside a class in the spark package, returns the name of the user code class
    * (outside the spark package) that called into Spark, as well as which Spark method they called.
    * This is used, for example, to tell users where in their code each RDD got created.
-   *
+   * 获取当前SparkContext的当前调用堆栈，将栈里最靠近栈底的属于spark或者Scala核心的类压入callStack的栈顶，
+   * 并将此类的方法存入lastSparkMethod；将栈里最靠近栈顶的用户类放入callStack，
+   * 将此类的行号存入firstUserLine，类名存入firstUserFile，最终返回的样例类CallSite存储了最短栈和长度默认为20的最长栈的样例类
    * @param skipClass Function that is used to exclude non-user-code classes.
    */
   def getCallSite(skipClass: String => Boolean = sparkInternalExclusionFunction): CallSite = {

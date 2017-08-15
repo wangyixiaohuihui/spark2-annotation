@@ -31,6 +31,7 @@ import org.apache.spark.internal.Logging
 private[spark] trait ListenerBus[L <: AnyRef, E] extends Logging {
 
   // Marked `private[spark]` for access in tests.
+  // 容器即写时复制的容器, 允许在list 新增元素的同时 读取list 内容
   private[spark] val listeners = new CopyOnWriteArrayList[L]
 
   /**

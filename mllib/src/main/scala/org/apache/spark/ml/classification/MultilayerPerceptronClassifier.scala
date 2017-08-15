@@ -135,6 +135,7 @@ private object LabelConverter {
 }
 
 /**
+ * 多层感知器模型
  * Classifier trainer based on the Multilayer Perceptron.
  * Each layer has sigmoid activation function, output layer has softmax.
  * Number of inputs has to be equal to the size of feature vectors.
