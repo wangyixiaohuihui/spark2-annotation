@@ -108,15 +108,15 @@ private[spark] class ByteBufferBlockData(
  * Note that [[initialize()]] must be called before the BlockManager is usable.
  */
 private[spark] class BlockManager(
-    executorId: String,
-    rpcEnv: RpcEnv,
-    val master: BlockManagerMaster,
-    val serializerManager: SerializerManager,
+    executorId: String,   //BlockManager运行在哪个Executor之上
+    rpcEnv: RpcEnv,  //远程通信体
+    val master: BlockManagerMaster,  // BlockManagerMaster,管理整个集群的BlockManger
+    val serializerManager: SerializerManager,  //默认序列化器
     val conf: SparkConf,
-    memoryManager: MemoryManager,
-    mapOutputTracker: MapOutputTracker,
-    shuffleManager: ShuffleManager,
-    val blockTransferService: BlockTransferService,
+    memoryManager: MemoryManager,   //内存管理器
+    mapOutputTracker: MapOutputTracker,  //shuffle输出
+    shuffleManager: ShuffleManager,    //shuffle管理器
+    val blockTransferService: BlockTransferService,   //用于Block间的网络通信(进行备份时)
     securityManager: SecurityManager,
     numUsableCores: Int)
   extends BlockDataManager with BlockEvictionHandler with Logging {
@@ -128,7 +128,7 @@ private[spark] class BlockManager(
     // Only perform cleanup if an external service is not serving our shuffle files.
     val deleteFilesOnStop =
       !externalShuffleServiceEnabled || executorId == SparkContext.DRIVER_IDENTIFIER
-    new DiskBlockManager(conf, deleteFilesOnStop)
+    new DiskBlockManager(conf, deleteFilesOnStop)  // 磁盘中的Block管理器
   }
 
   // Visible for testing
@@ -204,10 +204,15 @@ private[spark] class BlockManager(
    * Initializes the BlockManager with the given appId. This is not performed in the constructor as
    * the appId may not be known at BlockManager instantiation time (in particular for the driver,
    * where it is only learned after registration with the TaskScheduler).
+   *  通过appId初始化BlockManager  不在构造器中完成实例化  因为在BlockManager 实例化 AppId 可能不知道
+   *  （ 特别 对于driver来说，只有在TaskSchedule注册后才知道应用程序的id）
    *
-   * This method initializes the BlockTransferService and ShuffleClient, registers with the
+   *  This method initializes the BlockTransferService and ShuffleClient, registers with the
    * BlockManagerMaster, starts the BlockManagerWorker endpoint, and registers with a local shuffle
    * service if configured.
+   *  此方法会负责初始化BlockTransferService和ShuffleClient，并到BlockManagerMaster进行注册
+   *  启动BlockManagerWorker通信体进行网络通信，如果在配置文件中设置了Shuffle service，也会注册Shuffle service，,
+   *   说明Shuffle 过程是要借助 BlockManager对象完成的。
    */
   def initialize(appId: String): Unit = {
 
@@ -237,6 +242,7 @@ private[spark] class BlockManager(
 
     blockManagerId = if (idFromMaster != null) idFromMaster else id
 
+    //如果存在ExternalShuffleServer则需注册ExternalShuffleServer
     shuffleServerId = if (externalShuffleServiceEnabled) {
       logInfo(s"external shuffle service port = $externalShuffleServicePort")
       BlockManagerId(executorId, blockTransferService.hostName, externalShuffleServicePort)
@@ -310,6 +316,7 @@ private[spark] class BlockManager(
   def reregister(): Unit = {
     // TODO: We might need to rate limit re-registering.
     logInfo(s"BlockManager $blockManagerId re-registering with master")
+    //  向driver中BlockManager进行注册本机的BlockManager的 id
     master.registerBlockManager(blockManagerId, maxOnHeapMemory, maxOffHeapMemory, slaveEndpoint)
     reportAllBlocks()
   }

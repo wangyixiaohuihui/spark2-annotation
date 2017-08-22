@@ -427,7 +427,7 @@ class SparkContext(config: SparkConf) extends Logging {
 
     // "_jobProgressListener" should be set up before creating SparkEnv because when creating
     // "SparkEnv", some messages will be posted to "listenerBus" and we should not miss them.
-    //  JobProgressListener
+    //  JobProgressListener 创建在 SparkEnv 之前
     _jobProgressListener = new JobProgressListener(_conf)
     listenerBus.addListener(jobProgressListener)
 

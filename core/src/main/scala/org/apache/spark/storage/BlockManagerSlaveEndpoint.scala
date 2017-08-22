@@ -28,6 +28,8 @@ import org.apache.spark.util.{ThreadUtils, Utils}
 /**
  * An RpcEndpoint to take commands from the master to execute options. For example,
  * this is used to remove blocks from the slave's BlockManager.
+ * 一个在Block 的Master-Slave结构中处于Slave节点上的消息通信体。其内部有一个守护线程
+ *   不断的接收处理消息。
  */
 private[storage]
 class BlockManagerSlaveEndpoint(
@@ -36,11 +38,13 @@ class BlockManagerSlaveEndpoint(
     mapOutputTracker: MapOutputTracker)
   extends ThreadSafeRpcEndpoint with Logging {
 
+  //创建消息处理线程
   private val asyncThreadPool =
     ThreadUtils.newDaemonCachedThreadPool("block-manager-slave-async-thread-pool")
   private implicit val asyncExecutionContext = ExecutionContext.fromExecutorService(asyncThreadPool)
 
   // Operations that involve removing blocks may be slow and should be done asynchronously
+  // 根据接收消息的类型（也就是case Class的类型）不同进行相应的处理
   override def receiveAndReply(context: RpcCallContext): PartialFunction[Any, Unit] = {
     case RemoveBlock(blockId) =>
       doAsync[Boolean]("removing block " + blockId, context) {
@@ -52,7 +56,7 @@ class BlockManagerSlaveEndpoint(
       doAsync[Int]("removing RDD " + rddId, context) {
         blockManager.removeRdd(rddId)
       }
-
+    //删除Shuffle数据
     case RemoveShuffle(shuffleId) =>
       doAsync[Boolean]("removing shuffle " + shuffleId, context) {
         if (mapOutputTracker != null) {
