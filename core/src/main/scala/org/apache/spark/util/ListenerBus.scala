@@ -55,12 +55,12 @@ private[spark] trait ListenerBus[L <: AnyRef, E] extends Logging {
    */
   def postToAll(event: E): Unit = {
     // JavaConverters can create a JIterableWrapper if we use asScala.
-    // However, this method will be called frequently. To avoid the wrapper cost, here we use
-    // Java Iterator directly.
-    val iter = listeners.iterator
-    while (iter.hasNext) {
-      val listener = iter.next()
-      try {
+        // However, this method will be called frequently. To avoid the wrapper cost, here we use
+        // Java Iterator directly.
+        val iter = listeners.iterator
+        while (iter.hasNext) {
+          val listener = iter.next()
+          try {
         // 分发到所有的注册 listener
         doPostEvent(listener, event)
       } catch {

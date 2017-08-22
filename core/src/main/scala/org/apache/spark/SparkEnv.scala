@@ -348,6 +348,7 @@ object SparkEnv extends Logging {
       conf, isDriver)
 
     // NB: blockManager is not valid until initialize() is called later.
+    // 此时的 blockManager 还是不可用状态，直到 initialize() 方法被Executor 调用之后
     val blockManager = new BlockManager(executorId, rpcEnv, blockManagerMaster,
       serializerManager, conf, memoryManager, mapOutputTracker, shuffleManager,
       blockTransferService, securityManager, numUsableCores)

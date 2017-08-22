@@ -39,6 +39,8 @@ import org.apache.spark.util.Utils
 
 /**
  * A BlockTransferService that uses Netty to fetch a set of blocks at time.
+ *  网络数据传输时 需要用到
+ *
  */
 private[spark] class NettyBlockTransferService(
     conf: SparkConf,

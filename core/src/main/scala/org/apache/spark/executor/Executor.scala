@@ -113,6 +113,7 @@ private[spark] class Executor(
   private val taskReaperForTask: HashMap[Long, TaskReaper] = HashMap[Long, TaskReaper]()
 
   if (!isLocal) {
+    // Executor实例化时调用BlockManager#initialize方法。
     env.metricsSystem.registerSource(executorSource)
     env.blockManager.initialize(conf.getAppId)
   }
