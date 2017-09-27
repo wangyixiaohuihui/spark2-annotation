@@ -38,6 +38,7 @@ import org.apache.spark.storage.{BlockId, StorageLevel}
  *
  * Opened blocks are registered with the "one-for-one" strategy, meaning each Transport-layer Chunk
  * is equivalent to one Spark-level shuffle block.
+ *  接受远端服务调用时 用到
  */
 class NettyBlockRpcServer(
     appId: String,
@@ -56,9 +57,13 @@ class NettyBlockRpcServer(
 
     message match {
       case openBlocks: OpenBlocks =>
+        // 接收到读请求数据时
         val blocksNum = openBlocks.blockIds.length
         val blocks = for (i <- (0 until blocksNum).view)
+          // 调用 blockManager.getBlockData 读取该节点上的数据 读取的数据封装成 ManagedBuffer 序列缓存在内存中
           yield blockManager.getBlockData(BlockId.apply(openBlocks.blockIds(i)))
+
+        // 注册ManagerBuffer 序列， 利用Netty 传输通道进行数据传输
         val streamId = streamManager.registerStream(appId, blocks.iterator.asJava)
         logTrace(s"Registered streamId $streamId with $blocksNum buffers")
         responseContext.onSuccess(new StreamHandle(streamId, blocksNum).toByteBuffer)

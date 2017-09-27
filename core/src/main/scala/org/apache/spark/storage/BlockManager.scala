@@ -503,6 +503,7 @@ private[spark] class BlockManager(
 
   /**
    * Get block from local block manager as an iterator of Java objects.
+   *  从本地 读取block
    */
   def getLocalValues(blockId: BlockId): Option[BlockResult] = {
     logDebug(s"Getting local block $blockId")
@@ -630,6 +631,7 @@ private[spark] class BlockManager(
   /**
    * Return a list of locations for the given block, prioritizing the local machine since
    * multiple block managers can share the same host.
+   *  获取数据块所在的位置信息 按照 host 是否是本地host  先后顺序排序
    */
   private def getLocations(blockId: BlockId): Seq[BlockManagerId] = {
     val locs = Random.shuffle(master.getLocations(blockId))
@@ -1021,6 +1023,8 @@ private[spark] class BlockManager(
   }
 
   /**
+   *  写数据入口
+   *
    * Put the given block according to the given level in one of the block stores, replicating
    * the values if necessary.
    *
@@ -1044,14 +1048,19 @@ private[spark] class BlockManager(
       var iteratorFromFailedMemoryStorePut: Option[PartiallyUnrolledIterator[T]] = None
       // Size of the block in bytes
       var size = 0L
+      // 数据写入到内存中
       if (level.useMemory) {
         // Put it in memory first, even if it also has useDisk set to true;
         // We will drop it to disk later if the memory store can't hold it.
         if (level.deserialized) {
+
+          // 数据存入内存
           memoryStore.putIteratorAsValues(blockId, iterator(), classTag) match {
+              // 数据写入内存成功，返回数据块的大小
             case Right(s) =>
               size = s
             case Left(iter) =>
+              // 数据写入到内存失败，如果存储级别设置为写入磁盘，则写入到磁盘中，否则 返回结果
               // Not enough space to unroll this block; drop to disk if applicable
               if (level.useDisk) {
                 logWarning(s"Persisting block $blockId to disk instead.")
@@ -1084,6 +1093,7 @@ private[spark] class BlockManager(
         }
 
       } else if (level.useDisk) {
+        // 调用 DiskStore 的put 方法把数据写入到磁盘中
         diskStore.put(blockId) { channel =>
           val out = Channels.newOutputStream(channel)
           serializerManager.dataSerializeStream(blockId, out, iterator())(classTag)
@@ -1095,12 +1105,15 @@ private[spark] class BlockManager(
       val blockWasSuccessfullyStored = putBlockStatus.storageLevel.isValid
       if (blockWasSuccessfullyStored) {
         // Now that the block is in either the memory or disk store, tell the master about it.
+        // 数据成功写入，则把数据块的元素据信息 发送给Driver 端
         info.size = size
         if (tellMaster && info.tellMaster) {
+          // 更新元数据信息
           reportBlockStatus(blockId, putBlockStatus)
         }
         addUpdatedBlockStatusToTaskMetrics(blockId, putBlockStatus)
         logDebug("Put block %s locally took %s".format(blockId, Utils.getUsedTimeMs(startTimeMs)))
+        // 如果需要创建副本数据 则根据数据块的编号 获取数据 并复制到其他的节点上
         if (level.replication > 1) {
           val remoteStartTime = System.currentTimeMillis
           val bytesToReplicate = doGetLocalBytes(blockId, info)

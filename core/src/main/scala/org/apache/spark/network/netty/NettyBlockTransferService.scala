@@ -39,7 +39,7 @@ import org.apache.spark.util.Utils
 
 /**
  * A BlockTransferService that uses Netty to fetch a set of blocks at time.
- *  网络数据传输时 需要用到
+ *  网络数据传输时 需要用到   读取远端数据时需要用到
  *
  */
 private[spark] class NettyBlockTransferService(
@@ -97,10 +97,13 @@ private[spark] class NettyBlockTransferService(
     try {
       val blockFetchStarter = new RetryingBlockFetcher.BlockFetchStarter {
         override def createAndStart(blockIds: Array[String], listener: BlockFetchingListener) {
+
+          // 根据远程 节点的的host  和 port 创建通信客户端
           val client = clientFactory.createClient(host, port)
           new OneForOneBlockFetcher(client, appId, execId, blockIds.toArray, listener,
             transportConf, shuffleFiles).start()
         }
+
       }
 
       val maxRetries = transportConf.maxIORetries()

@@ -62,10 +62,13 @@ private[spark] class DiskStore(
     }
     logDebug(s"Attempting to put block $blockId")
     val startTime = System.currentTimeMillis
+
+    // 获取需要写入文件句柄  参见外部存储系统的读取过程
     val file = diskManager.getFile(blockId)
     val out = new CountingWritableChannel(openForWrite(file))
     var threwException: Boolean = true
     try {
+      // 调用回调方法 写入前 需要把值类型数据序列化成数据流
       writeFunc(out)
       blockSizes.put(blockId.name, out.getCount)
       threwException = false
