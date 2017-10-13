@@ -42,7 +42,7 @@ private[spark] class ShuffleMapStage(
     parents: List[Stage],
     firstJobId: Int,
     callSite: CallSite,
-    val shuffleDep: ShuffleDependency[_, _, _])
+    val shuffleDep: ShuffleDependency[_, _, _]) // Output shuffle if stage is a map stage
   extends Stage(id, rdd, numTasks, parents, firstJobId, callSite) {
 
   private[this] var _mapStageJobs: List[ActiveJob] = Nil

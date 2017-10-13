@@ -143,6 +143,9 @@ private[streaming] abstract class ReceiverSupervisor(
   /** Start receiver */
   def startReceiver(): Unit = synchronized {
     try {
+
+      // 先调用 ReceiverSupervisorImpl 累的OnReceiverStart 方法进行注册，
+      //  如果注册成功 则继续进行 流数据接收器 Receiver 启动
       if (onReceiverStart()) {
         logInfo(s"Starting receiver $streamId")
         receiverState = Started

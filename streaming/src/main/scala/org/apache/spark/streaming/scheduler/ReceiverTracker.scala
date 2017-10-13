@@ -476,10 +476,13 @@ class ReceiverTracker(ssc: StreamingContext, skipReceiverLaunch: Boolean = false
     override def receive: PartialFunction[Any, Unit] = {
       // Local messages
       case StartAllReceivers(receivers) =>
+        // 根据流数据接收器分发策略 匹配流数据接收器 Receiver 和 Executor
+        // 分发过程 Receiver 中
         val scheduledLocations = schedulingPolicy.scheduleReceivers(receivers, getExecutors)
         for (receiver <- receivers) {
           val executors = scheduledLocations(receiver.streamId)
           updateReceiverScheduledExecutors(receiver.streamId, executors)
+          // 在HashMap 中保存流数据接收器 Receiver 首选位置
           receiverPreferredLocations(receiver.streamId) = receiver.preferredLocation
           startReceiver(receiver, executors)
         }

@@ -338,7 +338,7 @@ abstract class RDD[T: ClassTag](
       readCachedBlock = false
       computeOrReadCheckpoint(partition, context)
     }) match {
-      case Left(blockResult) =>
+      case Left(blockResult) => // 命中缓存
         if (readCachedBlock) {
           // 记录度量信息
           val existingMetrics = context.taskMetrics().inputMetrics

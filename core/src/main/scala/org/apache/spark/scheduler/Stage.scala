@@ -54,11 +54,11 @@ import org.apache.spark.util.CallSite
  *   RDD was created, for a shuffle map stage, or where the action for a result stage was called.
  */
 private[scheduler] abstract class Stage(
-    val id: Int,
-    val rdd: RDD[_],
-    val numTasks: Int,
-    val parents: List[Stage],
-    val firstJobId: Int,
+    val id: Int,  // 序号值越大 优先级越高
+    val rdd: RDD[_], // 归属于本Stage的最后一个rdd
+    val numTasks: Int,  //创建的Task数目，等于父RDD的输出Partition数目
+    val parents: List[Stage],  //父Stage列表
+    val firstJobId: Int,  //作业ID
     val callSite: CallSite)
   extends Logging {
 

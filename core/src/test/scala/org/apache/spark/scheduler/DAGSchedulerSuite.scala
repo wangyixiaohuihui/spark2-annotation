@@ -338,8 +338,9 @@ class DAGSchedulerSuite extends SparkFunSuite with LocalSparkContext with Timeou
     sparkListener.stageByOrderOfExecution.clear()
     sc.parallelize(1 to 10).map(x => (x, x)).reduceByKey(_ + _, 4).count()
     sc.listenerBus.waitUntilEmpty(WAIT_TIMEOUT_MILLIS)
-    assert(sparkListener.stageByOrderOfExecution.length === 2)
-    assert(sparkListener.stageByOrderOfExecution(0) < sparkListener.stageByOrderOfExecution(1))
+
+    println(sparkListener.stageByOrderOfExecution.length)
+    println(sparkListener.stageByOrderOfExecution(0) < sparkListener.stageByOrderOfExecution(1))
   }
 
   /**
@@ -363,37 +364,48 @@ class DAGSchedulerSuite extends SparkFunSuite with LocalSparkContext with Timeou
     val shuffleDepA = new ShuffleDependency(rddA, new HashPartitioner(1))
     val s_A = shuffleDepA.shuffleId
 
+    println("rddA:"+ rddA)
+
     val rddB = new MyRDD(sc, 1, List(shuffleDepA), tracker = mapOutputTracker)
     val shuffleDepB = new ShuffleDependency(rddB, new HashPartitioner(1))
     val s_B = shuffleDepB.shuffleId
+
+    println("rddB:"+ rddB)
 
     val rddC = new MyRDD(sc, 1, List(shuffleDepA, shuffleDepB), tracker = mapOutputTracker)
     val shuffleDepC = new ShuffleDependency(rddC, new HashPartitioner(1))
     val s_C = shuffleDepC.shuffleId
 
+    println("rddC:"+ rddC)
+
     val rddD = new MyRDD(sc, 1, List(shuffleDepC), tracker = mapOutputTracker)
 
+    println("rddD:"+ rddD)
     submit(rddD, Array(0))
 
-    assert(scheduler.shuffleIdToMapStage.size === 3)
-    assert(scheduler.activeJobs.size === 1)
 
-    val mapStageA = scheduler.shuffleIdToMapStage(s_A)
-    val mapStageB = scheduler.shuffleIdToMapStage(s_B)
-    val mapStageC = scheduler.shuffleIdToMapStage(s_C)
-    val finalStage = scheduler.activeJobs.head.finalStage
+    scheduler.shuffleIdToMapStage.foreach(stage=>{
+      println(stage._1  + " map:" + stage._2)
+    })
+//    assert(scheduler.shuffleIdToMapStage.size === 3)
+//    assert(scheduler.activeJobs.size === 1)
 
-    assert(mapStageA.parents.isEmpty)
-    assert(mapStageB.parents === List(mapStageA))
-    assert(mapStageC.parents === List(mapStageA, mapStageB))
-    assert(finalStage.parents === List(mapStageC))
-
-    complete(taskSets(0), Seq((Success, makeMapStatus("hostA", 1))))
-    complete(taskSets(1), Seq((Success, makeMapStatus("hostA", 1))))
-    complete(taskSets(2), Seq((Success, makeMapStatus("hostA", 1))))
-    complete(taskSets(3), Seq((Success, 42)))
-    assert(results === Map(0 -> 42))
-    assertDataStructuresEmpty()
+//    val mapStageA = scheduler.shuffleIdToMapStage(s_A)
+//    val mapStageB = scheduler.shuffleIdToMapStage(s_B)
+//    val mapStageC = scheduler.shuffleIdToMapStage(s_C)
+//    val finalStage = scheduler.activeJobs.head.finalStage
+//
+//    println(mapStageA.parents.isEmpty)
+//    println(mapStageB.parents) //  === List(mapStageA)
+//    println(mapStageC.parents) //  === List(mapStageA, mapStageB)
+//    println(finalStage.parents ) // === List(mapStageC)
+//
+//    complete(taskSets(0), Seq((Success, makeMapStatus("hostA", 1))))
+//    complete(taskSets(1), Seq((Success, makeMapStatus("hostA", 1))))
+//    complete(taskSets(2), Seq((Success, makeMapStatus("hostA", 1))))
+//    complete(taskSets(3), Seq((Success, 42)))
+//    assert(results === Map(0 -> 42))
+//    assertDataStructuresEmpty()
   }
 
   test("zero split job") {
@@ -2135,21 +2147,54 @@ class DAGSchedulerSuite extends SparkFunSuite with LocalSparkContext with Timeou
    * shuffle dependencies of E are the shuffle dependency on A and the shuffle dependency on C.
    */
   test("getShuffleDependencies correctly returns only direct shuffle parents") {
+
     val rddA = new MyRDD(sc, 2, Nil)
     val shuffleDepA = new ShuffleDependency(rddA, new HashPartitioner(1))
+
     val rddB = new MyRDD(sc, 2, Nil)
     val shuffleDepB = new ShuffleDependency(rddB, new HashPartitioner(1))
+
     val rddC = new MyRDD(sc, 1, List(shuffleDepB))
     val shuffleDepC = new ShuffleDependency(rddC, new HashPartitioner(1))
+
     val rddD = new MyRDD(sc, 1, List(shuffleDepC))
     val narrowDepD = new OneToOneDependency(rddD)
+
     val rddE = new MyRDD(sc, 1, List(shuffleDepA, narrowDepD), tracker = mapOutputTracker)
 
-    assert(scheduler.getShuffleDependencies(rddA) === Set())
-    assert(scheduler.getShuffleDependencies(rddB) === Set())
-    assert(scheduler.getShuffleDependencies(rddC) === Set(shuffleDepB))
-    assert(scheduler.getShuffleDependencies(rddD) === Set(shuffleDepC))
-    assert(scheduler.getShuffleDependencies(rddE) === Set(shuffleDepA, shuffleDepC))
+    println("==========rddA================")
+    scheduler.getShuffleDependencies(rddA).foreach(s=>{
+      println(s.shuffleHandle.shuffleId)
+    })
+
+    println("==========rddB================")
+    scheduler.getShuffleDependencies(rddB).foreach(s=>{
+      println(s.shuffleHandle.shuffleId)
+    })
+    println("==========rddC================")
+    scheduler.getShuffleDependencies(rddC).foreach(s=>{
+      println(s.shuffleHandle.shuffleId)
+    })
+    println("==========rddD================")
+    scheduler.getShuffleDependencies(rddD).foreach(s=>{
+      println(s.shuffleHandle.shuffleId)
+    })
+    println("==========rddE================")
+    scheduler.getShuffleDependencies(rddE).foreach(s=>{
+      println(s.shuffleHandle.shuffleId)
+    })
+
+
+    println("==========================")
+    scheduler.getShuffleDependencies(rddD).foreach(s=>{
+      println("----------------:"+ s.shuffleHandle.shuffleId)
+      scheduler.getMissingAncestorShuffleDependencies(s.rdd).foreach(s=>{
+        println(s.shuffleHandle.shuffleId)
+      })
+      println("-----------------")
+    })
+
+
   }
 
   test("SPARK-17644: After one stage is aborted for too many failed attempts, subsequent stages" +
@@ -2219,9 +2264,9 @@ class DAGSchedulerSuite extends SparkFunSuite with LocalSparkContext with Timeou
 
     val rddC = new MyRDD(sc, 2, List(shuffleDepB), tracker = mapOutputTracker)
 
-    submit(rddC, Array(0, 1))
+    (rddC, Array(0, 1))
 
-    // Complete both tasks in rddA.
+    // Complete both tasks in rddAsubmit.
     assert(taskSets(0).stageId === 0 && taskSets(0).stageAttemptId === 0)
     complete(taskSets(0), Seq(
       (Success, makeMapStatus("hostA", 2)),

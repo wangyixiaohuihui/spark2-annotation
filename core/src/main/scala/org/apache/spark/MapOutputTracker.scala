@@ -598,6 +598,7 @@ private[spark] class MapOutputTrackerWorker(conf: SparkConf) extends MapOutputTr
     new ConcurrentHashMap[Int, Array[MapStatus]]().asScala
 }
 
+// 保存 Shuffle Map Task 输出的位置信息
 private[spark] object MapOutputTracker extends Logging {
 
   val ENDPOINT_NAME = "MapOutputTracker"
