@@ -111,10 +111,12 @@ private[memory] class ExecutionMemoryPool(
     // TODO: simplify this to limit each task to its own slot
     while (true) {
       val numActiveTasks = memoryForTask.keys.size
+      // 当前task 分配的内存
       val curMem = memoryForTask(taskAttemptId)
 
+      // 每一次迭代过程中 尝试回收 execution 借给storage的内存
       // In every iteration of this loop, we should first try to reclaim any borrowed execution
-      // space from storage. This is necessary because of the potential race condition where new
+      // space from storage. This is necessary because of the potential race condition（潜在的竞争条件）where new
       // storage blocks may steal the free execution memory that this task was waiting for.
       maybeGrowPool(numBytes - memoryFree)
 
@@ -123,6 +125,7 @@ private[memory] class ExecutionMemoryPool(
       // must take into account potential free memory as well as the amount this pool currently
       // occupies. Otherwise, we may run into SPARK-12155 where, in unified memory management,
       // we did not take into account space that could have been freed by evicting cached blocks.
+      // 计算从storage 中借内存之后，execution pool 总内存
       val maxPoolSize = computeMaxPoolSize()
       val maxMemoryPerTask = maxPoolSize / numActiveTasks
       val minMemoryPerTask = poolSize / (2 * numActiveTasks)

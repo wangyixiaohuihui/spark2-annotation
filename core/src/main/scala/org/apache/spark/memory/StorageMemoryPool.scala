@@ -70,6 +70,7 @@ private[memory] class StorageMemoryPool(
    */
   def acquireMemory(blockId: BlockId, numBytes: Long): Boolean = lock.synchronized {
     val numBytesToFree = math.max(0, numBytes - memoryFree)
+    log.debug("acquireMemory: numBytesToFree:{}", numBytesToFree)
     acquireMemory(blockId, numBytes, numBytesToFree)
   }
 

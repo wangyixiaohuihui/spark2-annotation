@@ -325,6 +325,7 @@ object SparkEnv extends Logging {
     val shuffleManager = instantiateClass[ShuffleManager](shuffleMgrClass)
 
     val useLegacyMemoryManager = conf.getBoolean("spark.memory.useLegacyMode", false)
+    log.debug("enter useLegacyMemoryManager:{}",useLegacyMemoryManager)
     val memoryManager: MemoryManager =
       if (useLegacyMemoryManager) {
         new StaticMemoryManager(conf, numUsableCores)

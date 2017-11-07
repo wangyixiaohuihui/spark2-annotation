@@ -19,6 +19,8 @@
 
 # Starts the master on the machine this script is executed on.
 
+# $0 shell
+
 if [ -z "${SPARK_HOME}" ]; then
   export SPARK_HOME="$(cd "`dirname "$0"`"/..; pwd)"
 fi

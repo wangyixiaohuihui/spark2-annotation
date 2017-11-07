@@ -18,6 +18,7 @@
 package org.apache.spark.memory
 
 import org.apache.spark.SparkConf
+import org.apache.spark.internal.Logging
 import org.apache.spark.storage.BlockId
 
 /**
@@ -105,6 +106,7 @@ private[spark] class UnifiedMemoryManager private[memory] (
      * When acquiring memory for a task, the execution pool may need to make multiple
      * attempts. Each attempt must be able to evict storage in case another task jumps in
      * and caches a large block between the attempts. This is called once per attempt.
+     * 会释放storage中保存的数据，减小storage部分内存大小，从而增大Execution部分
      */
     def maybeGrowExecutionPool(extraMemoryNeeded: Long): Unit = {
       if (extraMemoryNeeded > 0) {
@@ -137,6 +139,7 @@ private[spark] class UnifiedMemoryManager private[memory] (
      * in execution memory allocation across tasks, Otherwise, a task may occupy more than
      * its fair share of execution memory, mistakenly thinking that other tasks can acquire
      * the portion of storage memory that cannot be evicted.
+     *  计算在 storage 释放内存借给 execution 后，execution 部分的内存大小
      */
     def computeMaxExecutionPoolSize(): Long = {
       maxMemory - math.min(storagePool.memoryUsed, storageRegionSize)
@@ -170,7 +173,7 @@ private[spark] class UnifiedMemoryManager private[memory] (
     }
     if (numBytes > storagePool.memoryFree) {
       // There is not enough free memory in the storage pool, so try to borrow free memory from
-      // the execution pool.
+      // the execution pool. 从执行区内存借用内存
       val memoryBorrowedFromExecution = Math.min(executionPool.memoryFree,
         numBytes - storagePool.memoryFree)
       executionPool.decrementPoolSize(memoryBorrowedFromExecution)
@@ -187,7 +190,7 @@ private[spark] class UnifiedMemoryManager private[memory] (
   }
 }
 
-object UnifiedMemoryManager {
+object UnifiedMemoryManager extends Logging{
 
   // Set aside a fixed amount of memory for non-storage, non-execution purposes.
   // This serves a function similar to `spark.memory.fraction`, but guarantees that we reserve
@@ -209,10 +212,13 @@ object UnifiedMemoryManager {
    * Return the total amount of memory shared between execution and storage, in bytes.
    */
   private def getMaxMemory(conf: SparkConf): Long = {
+    // 生产环境中一般不会设置 spark.testing.memory，所以这里认为 systemMemory 大小为 Jvm 最大可用内存
     val systemMemory = conf.getLong("spark.testing.memory", Runtime.getRuntime.maxMemory)
+    // 系统预留 300M
     val reservedMemory = conf.getLong("spark.testing.reservedMemory",
       if (conf.contains("spark.testing")) 0 else RESERVED_SYSTEM_MEMORY_BYTES)
     val minSystemMemory = (reservedMemory * 1.5).ceil.toLong
+    // 如果 systemMemory 小于450M，则抛异常
     if (systemMemory < minSystemMemory) {
       throw new IllegalArgumentException(s"System memory $systemMemory must " +
         s"be at least $minSystemMemory. Please increase heap size using the --driver-memory " +
@@ -227,8 +233,12 @@ object UnifiedMemoryManager {
           s"--executor-memory option or spark.executor.memory in Spark configuration.")
       }
     }
+    // 最终 execution 和 storage 的可用内存之和为 (JVM最大可用内存 - 系统预留内存) * spark.memory.fraction
     val usableMemory = systemMemory - reservedMemory
     val memoryFraction = conf.getDouble("spark.memory.fraction", 0.6)
+
+    log.debug("UnifiedMemoryManager=>  systemMemory:{},reservedMemory：{}",usableMemory,systemMemory,reservedMemory)
+
     (usableMemory * memoryFraction).toLong
   }
 }

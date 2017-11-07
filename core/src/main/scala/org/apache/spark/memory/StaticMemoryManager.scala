@@ -18,6 +18,7 @@
 package org.apache.spark.memory
 
 import org.apache.spark.SparkConf
+import org.apache.spark.internal.Logging
 import org.apache.spark.storage.BlockId
 
 /**
@@ -51,6 +52,7 @@ private[spark] class StaticMemoryManager(
   offHeapStorageMemoryPool.decrementPoolSize(offHeapStorageMemoryPool.poolSize)
 
   // Max number of bytes worth of blocks to evict when unrolling
+  // 反序列化 block
   private val maxUnrollMemory: Long = {
     (maxOnHeapStorageMemory * conf.getDouble("spark.storage.unrollFraction", 0.2)).toLong
   }
@@ -104,7 +106,7 @@ private[spark] class StaticMemoryManager(
 }
 
 
-private[spark] object StaticMemoryManager {
+private[spark] object StaticMemoryManager extends Logging{
 
   private val MIN_MEMORY_BYTES = 32 * 1024 * 1024
 
@@ -115,11 +117,17 @@ private[spark] object StaticMemoryManager {
     val systemMaxMemory = conf.getLong("spark.testing.memory", Runtime.getRuntime.maxMemory)
     val memoryFraction = conf.getDouble("spark.storage.memoryFraction", 0.6)
     val safetyFraction = conf.getDouble("spark.storage.safetyFraction", 0.9)
+
+
+    log.debug("getMaxStorageMemory == systemMaxMemory:{}----memoryFraction:{}-----safetyFraction:{}",
+      systemMaxMemory, memoryFraction, safetyFraction)
+
     (systemMaxMemory * memoryFraction * safetyFraction).toLong
   }
 
   /**
    * Return the total amount of memory available for the execution region, in bytes.
+   * 执行区域内存大小
    */
   private def getMaxExecutionMemory(conf: SparkConf): Long = {
     val systemMaxMemory = conf.getLong("spark.testing.memory", Runtime.getRuntime.maxMemory)
@@ -139,6 +147,10 @@ private[spark] object StaticMemoryManager {
     }
     val memoryFraction = conf.getDouble("spark.shuffle.memoryFraction", 0.2)
     val safetyFraction = conf.getDouble("spark.shuffle.safetyFraction", 0.8)
+
+    log.debug("getMaxExecutionMemory == systemMaxMemory:{}----memoryFraction:{}-----safetyFraction:{}",
+      systemMaxMemory, memoryFraction, safetyFraction)
+
     (systemMaxMemory * memoryFraction * safetyFraction).toLong
   }
 
