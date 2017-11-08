@@ -119,8 +119,8 @@ private[spark] object StaticMemoryManager extends Logging{
     val safetyFraction = conf.getDouble("spark.storage.safetyFraction", 0.9)
 
 
-    log.debug("getMaxStorageMemory == systemMaxMemory:{}----memoryFraction:{}-----safetyFraction:{}",
-      systemMaxMemory, memoryFraction, safetyFraction)
+    logDebug("getMaxStorageMemory == systemMaxMemory:{"+systemMaxMemory+
+      "}----memoryFraction:{"+memoryFraction+"}-----safetyFraction:{"+safetyFraction+"}")
 
     (systemMaxMemory * memoryFraction * safetyFraction).toLong
   }
@@ -148,8 +148,7 @@ private[spark] object StaticMemoryManager extends Logging{
     val memoryFraction = conf.getDouble("spark.shuffle.memoryFraction", 0.2)
     val safetyFraction = conf.getDouble("spark.shuffle.safetyFraction", 0.8)
 
-    log.debug("getMaxExecutionMemory == systemMaxMemory:{}----memoryFraction:{}-----safetyFraction:{}",
-      systemMaxMemory, memoryFraction, safetyFraction)
+    logDebug("getMaxExecutionMemory == systemMaxMemory:"+systemMaxMemory+"----memoryFraction:"+memoryFraction+"-----safetyFraction:"+safetyFraction)
 
     (systemMaxMemory * memoryFraction * safetyFraction).toLong
   }

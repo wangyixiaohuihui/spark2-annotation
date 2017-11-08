@@ -237,7 +237,7 @@ object UnifiedMemoryManager extends Logging{
     val usableMemory = systemMemory - reservedMemory
     val memoryFraction = conf.getDouble("spark.memory.fraction", 0.6)
 
-    log.debug("UnifiedMemoryManager=>  systemMemory:{},reservedMemory：{}",usableMemory,systemMemory,reservedMemory)
+    logDebug("UnifiedMemoryManager=>"+usableMemory+"  systemMemory:{"+systemMemory+"},reservedMemory：{"+reservedMemory+"}")
 
     (usableMemory * memoryFraction).toLong
   }
