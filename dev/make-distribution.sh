@@ -36,7 +36,9 @@ MAKE_TGZ=false
 MAKE_PIP=false
 MAKE_R=false
 NAME=none
-MVN="$SPARK_HOME/build/mvn"
+#MVN="$SPARK_HOME/build/mvn"
+
+MVN="/root/apache-maven-3.3.9/bin/mvn"
 
 function exit_with_usage {
   echo "make-distribution.sh - tool for making binary distributions of Spark"
