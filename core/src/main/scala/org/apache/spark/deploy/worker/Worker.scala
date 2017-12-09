@@ -470,6 +470,11 @@ private[deploy] class Worker(
 
     // 启动 worker
     case LaunchExecutor(masterUrl, appId, execId, appDesc, cores_, memory_) =>
+
+      log.info("receive LaunchExecutor(masterUrl:{}, appId:{}, execId:{}, appDesc:{}, cores:{}, memory:{}) "
+      ,masterUrl, appId, execId, appDesc, cores_, memory_)
+
+
       if (masterUrl != activeMasterUrl) {
         logWarning("Invalid Master (" + masterUrl + ") attempted to launch executor.")
       } else {
@@ -741,12 +746,15 @@ private[deploy] object Worker extends Logging {
   val ENDPOINT_NAME = "Worker"
 
   def main(argStrings: Array[String]) {
+
+    log.info("start worker-------------------------")
     Utils.initDaemon(log)
     val conf = new SparkConf
     val args = new WorkerArguments(argStrings, conf)
     val rpcEnv = startRpcEnvAndEndpoint(args.host, args.port, args.webUiPort, args.cores,
       args.memory, args.masters, args.workDir, conf = conf)
     rpcEnv.awaitTermination()
+    log.info("register worker RpcEnv")
   }
 
   def startRpcEnvAndEndpoint(
@@ -763,6 +771,9 @@ private[deploy] object Worker extends Logging {
     // The LocalSparkCluster runs multiple local sparkWorkerX RPC Environments
     val systemName = SYSTEM_NAME + workerNumber.map(_.toString).getOrElse("")
     val securityMgr = new SecurityManager(conf)
+
+    log.info("create RpcEnv systemName:{}, host:{}, port:{}",systemName, host, port)
+
     val rpcEnv = RpcEnv.create(systemName, host, port, conf, securityMgr)
     val masterAddresses = masterUrls.map(RpcAddress.fromSparkURL(_))
     rpcEnv.setupEndpoint(ENDPOINT_NAME, new Worker(rpcEnv, webUiPort, cores, memory,
