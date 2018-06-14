@@ -471,8 +471,8 @@ private[deploy] class Worker(
     // 启动 worker
     case LaunchExecutor(masterUrl, appId, execId, appDesc, cores_, memory_) =>
 
-      log.info("receive LaunchExecutor(masterUrl:{}, appId:{}, execId:{}, appDesc:{}, cores:{}, memory:{}) "
-      ,masterUrl, appId, execId, appDesc, cores_, memory_)
+      log.info("receive LaunchExecutor(masterUrl:{}, appId:{}, execId:{}, appDesc:{}, cores:{}, memory:{})"
+      ,masterUrl, appId, execId.toString, appDesc.toString, cores_.toString, memory_.toString)
 
 
       if (masterUrl != activeMasterUrl) {
@@ -745,6 +745,7 @@ private[deploy] object Worker extends Logging {
   val SYSTEM_NAME = "sparkWorker"
   val ENDPOINT_NAME = "Worker"
 
+  // worker 启动脚本分析
   def main(argStrings: Array[String]) {
 
     log.info("start worker-------------------------")
@@ -772,7 +773,7 @@ private[deploy] object Worker extends Logging {
     val systemName = SYSTEM_NAME + workerNumber.map(_.toString).getOrElse("")
     val securityMgr = new SecurityManager(conf)
 
-    log.info("create RpcEnv systemName:{}, host:{}, port:{}",systemName, host, port)
+    log.info("create RpcEnv systemName:{}, host:{}, port:{}",systemName, host, port.toString)
 
     val rpcEnv = RpcEnv.create(systemName, host, port, conf, securityMgr)
     val masterAddresses = masterUrls.map(RpcAddress.fromSparkURL(_))

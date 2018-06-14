@@ -61,7 +61,8 @@ private[netty] class Dispatcher(nettyEnv: NettyRpcEnv) extends Logging {
   private var stopped = false
 
   /**
-    *  注冊rpcendpoint
+    *  注册  rpcendpoint
+    *  将RpcEndpoint 添加到集合endpoints 和 endpointRefs 中
     * @param name  名称
     * @param endpoint
     * @return

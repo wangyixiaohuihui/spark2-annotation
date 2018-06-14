@@ -126,7 +126,7 @@ private[netty] class NettyRpcEnv(
         java.util.Collections.emptyList()
       }
     server = transportContext.createServer(bindAddress, port, bootstraps)
-    // 起动服务后在分离器上注册了一个RpcEndpoint
+    // 起动服务后在分离器上注册了一个RpcEndpoint  endpoint-verifier
     dispatcher.registerRpcEndpoint(
       RpcEndpointVerifier.NAME, new RpcEndpointVerifier(this, dispatcher))
   }

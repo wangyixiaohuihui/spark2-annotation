@@ -1082,8 +1082,12 @@ private[deploy] object Master extends Logging {
   val ENDPOINT_NAME = "Master"
 
   def main(argStrings: Array[String]) {
+    // 注册日志
     Utils.initDaemon(log)
     val conf = new SparkConf
+
+    // 1. 从配置文件红获取
+    // 2. 参数中解析数据
     val args = new MasterArguments(argStrings, conf)
     // 启动 RPC 环境
     val (rpcEnv, _, _) = startRpcEnvAndEndpoint(args.host, args.port, args.webUiPort, conf)
@@ -1101,11 +1105,13 @@ private[deploy] object Master extends Logging {
       port: Int,
       webUiPort: Int,
       conf: SparkConf): (RpcEnv, Int, Option[Int]) = {
+
+    // spark 安全
     val securityMgr = new SecurityManager(conf)
     // master中RpcEnv 创建的入口
     val rpcEnv = RpcEnv.create(SYSTEM_NAME, host, port, conf, securityMgr)
 
-    // 利用之前创建的rpcEnv 来创建RpcEndpoint
+    // 利用之前创建的rpcEnv 来创建RpcEndpoint  返回rpcEndpoint 的ref
     val masterEndpoint = rpcEnv.setupEndpoint(ENDPOINT_NAME,
       new Master(rpcEnv, rpcEnv.address, webUiPort, securityMgr, conf))
     val portsResponse = masterEndpoint.askSync[BoundPortsResponse](BoundPortsRequest)

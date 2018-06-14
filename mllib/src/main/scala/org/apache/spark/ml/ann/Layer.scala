@@ -19,8 +19,7 @@ package org.apache.spark.ml.ann
 
 import java.util.Random
 
-import breeze.linalg.{*, axpy => Baxpy, DenseMatrix => BDM, DenseVector => BDV, Vector => BV}
-
+import breeze.linalg.{*, DenseMatrix, DenseMatrix => BDM, DenseVector => BDV, Vector => BV, axpy => Baxpy}
 import org.apache.spark.ml.linalg.{Vector, Vectors}
 import org.apache.spark.mllib.linalg.{Vector => OldVector, Vectors => OldVectors}
 import org.apache.spark.mllib.linalg.VectorImplicits._
@@ -480,11 +479,13 @@ private[ml] class FeedForwardModel private(
         }
       }
     }
-    layerModels(0).eval(data, outputs(0))
+
+    val copyOutputs = outputs.update()
+    layerModels(0).eval(data, copyOutputs(0))
     for (i <- 1 until layerModels.length) {
-      layerModels(i).eval(outputs(i - 1), outputs(i))
+      layerModels(i).eval(copyOutputs(i - 1), copyOutputs(i))
     }
-    outputs
+    copyOutputs
   }
 
   override def computeGradient(

@@ -48,6 +48,7 @@ private[master] class MasterArguments(args: Array[String], conf: SparkConf) exte
     webUiPort = System.getenv("SPARK_MASTER_WEBUI_PORT").toInt
   }
 
+  // 解析参数
   parse(args.toList)
 
   // This mutates the SparkConf, so all accesses to it must be made after this line

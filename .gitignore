@@ -1,6 +1,7 @@
 *#*#
 *.#*
 *.iml
+*/*.iml
 *.ipr
 *.iws
 *.pyc
