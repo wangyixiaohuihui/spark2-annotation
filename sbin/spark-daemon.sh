@@ -33,6 +33,8 @@
 usage="Usage: spark-daemon.sh [--config <conf-dir>] (start|stop|submit|status) <spark-command> <spark-instance-number> <args...>"
 
 # if no args specified, show usage
+# 传递给脚本或函数的参数个数
+# 
 if [ $# -le 1 ]; then
   echo $usage
   exit 1
@@ -48,7 +50,9 @@ fi
 
 # Check if --config is passed as an argument. It is an optional parameter.
 # Exit if the argument is not a directory.
-
+#
+#位置参数可以用shift命令左移。比如shift 3表示原来的$4现在变成$1，原来的$5现在变成$2等等，原来的$1、$2、$3丢弃，$0不移动。不带参数的shift命令相当于shift 1
+#
 if [ "$1" == "--config" ]
 then
   shift

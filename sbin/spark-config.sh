@@ -20,6 +20,10 @@
 # also should not be passed any arguments, since we need original $*
 
 # symlink and absolute path should rely on SPARK_HOME to resolve
+# 
+# cd `dirname $0`，进入当前Shell程序的目录
+# 
+# 
 if [ -z "${SPARK_HOME}" ]; then
   export SPARK_HOME="$(cd "`dirname "$0"`"/..; pwd)"
 fi

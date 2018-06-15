@@ -458,6 +458,7 @@ private[rpc] class NettyRpcEnvFactory extends RpcEnvFactory with Logging {
     // 初始化序列化实例，因为RpcEnv涉及网络传输对象，因此需要统一的序列化和反序列化
     val javaSerializerInstance =
       new JavaSerializer(sparkConf).newInstance().asInstanceOf[JavaSerializerInstance]
+
     val nettyEnv =
       new NettyRpcEnv(sparkConf, javaSerializerInstance, config.advertiseAddress,
         config.securityManager)

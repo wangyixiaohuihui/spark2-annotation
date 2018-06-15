@@ -28,7 +28,9 @@ fi
 # NOTE: This exact class name is matched downstream by SparkSubmit.
 # Any changes need to be reflected there.
 CLASS="org.apache.spark.deploy.master.Master"
-
+#
+#
+#"$*" 会将所有的参数作为一个整体，以"$1 $2 … $n"的形式输出所有参数；"$@" 会将各个参数分开，以"$1" "$2" … "$n" 的形式输出所有参数
 if [[ "$@" = *--help ]] || [[ "$@" = *-h ]]; then
   echo "Usage: ./sbin/start-master.sh [options]"
   pattern="Usage:"
