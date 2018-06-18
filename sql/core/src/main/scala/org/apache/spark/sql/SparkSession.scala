@@ -901,6 +901,7 @@ object SparkSession {
         val sparkContext = userSuppliedContext.getOrElse {
           // set app name if not given
           val randomAppName = java.util.UUID.randomUUID().toString
+          // 创建 SparkConf
           val sparkConf = new SparkConf()
           options.foreach { case (k, v) => sparkConf.set(k, v) }
           if (!sparkConf.contains("spark.app.name")) {

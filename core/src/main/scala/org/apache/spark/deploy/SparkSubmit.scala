@@ -109,6 +109,7 @@ object SparkSubmit extends CommandLineUtils {
   // scalastyle:on println
 
   override def main(args: Array[String]): Unit = {
+    // 解析submit 参数设置
     val appArgs = new SparkSubmitArguments(args)
     if (appArgs.verbose) {
       // scalastyle:off println
@@ -147,9 +148,13 @@ object SparkSubmit extends CommandLineUtils {
    * running the child main class based on the cluster manager and the deploy mode.
    * Second, we use this launch environment to invoke the main method of the child
    * main class.
+    * 1 准备启动、运行环境
+    * 2 运行jar 中class类
+    *
    */
   @tailrec
   private def submit(args: SparkSubmitArguments): Unit = {
+    // 解析参数
     val (childArgs, childClasspath, sysProps, childMainClass) = prepareSubmitEnvironment(args)
 
     def doRunMain(): Unit = {
@@ -209,8 +214,8 @@ object SparkSubmit extends CommandLineUtils {
   /**
    * Prepare the environment for submitting an application.
    * This returns a 4-tuple:
-   *   (1) the arguments for the child process,
-   *   (2) a list of classpath entries for the child,
+   *   (1) the arguments for the child process,  参数JVM 进程
+   *   (2) a list of classpath entries for the child, classpath 环境
    *   (3) a map of system properties, and
    *   (4) the main class for the child
    * Exposed for testing.
@@ -262,6 +267,7 @@ object SparkSubmit extends CommandLineUtils {
       }
 
       // Make sure YARN is included in our build if we're trying to use it
+      // 确认yarn.client类是否可以被加载
       if (!Utils.classIsLoadable("org.apache.spark.deploy.yarn.Client") && !Utils.isTesting) {
         printErrorAndExit(
           "Could not load YARN classes. " +
@@ -311,6 +317,7 @@ object SparkSubmit extends CommandLineUtils {
     }
 
     // In client mode, download remote files.
+    // client mode 需要download remote file
     if (deployMode == CLIENT) {
       val hadoopConf = new HadoopConfiguration()
       args.primaryResource = Option(args.primaryResource).map(downloadFile(_, hadoopConf)).orNull
@@ -497,7 +504,7 @@ object SparkSubmit extends CommandLineUtils {
     // In client mode, launch the application main class directly
     // In addition, add the main application jar and any added jars (if any) to the classpath
     // Also add the main application jar and any added jars to classpath in case YARN client
-    // requires these jars.
+    // requires these jars.  JAR 主类
     if (deployMode == CLIENT || isYarnCluster) {
       childMainClass = args.mainClass
       if (isUserJar(args.primaryResource)) {
