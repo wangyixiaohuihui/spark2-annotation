@@ -1406,7 +1406,13 @@ private[spark] object Utils extends Logging {
     }
   }
 
-  /** Default filtering function for finding call sites using `getCallSite`. */
+  /** Default filtering function for finding call sites using `getCallSite`.
+    *
+    * 堆栈信息中的className 过滤规则
+    * 以上两个正则表达式的方法名，赋值给lastSparkMethod并且将该栈元素放入栈顶，
+    * 记住是每一次都放入栈顶，也即是覆盖之前的，得到的是最后一个方法名
+    *
+    * */
   private def sparkInternalExclusionFunction(className: String): Boolean = {
     // A regular expression to match classes of the internal Spark API's
     // that we want to skip when finding the call site of a method.
@@ -1441,12 +1447,14 @@ private[spark] object Utils extends Logging {
     var insideSpark = true
     var callStack = new ArrayBuffer[String]() :+ "<unknown>"
 
+    // getStackTrace 返回线程堆栈, 数组按照线程调用顺序返回
     Thread.currentThread.getStackTrace().foreach { ste: StackTraceElement =>
       // When running under some profilers, the current stack trace might contain some bogus
       // frames. This is intended to ensure that we don't crash in these situations by
       // ignoring any frames that we can't examine.
       if (ste != null && ste.getMethodName != null
         && !ste.getMethodName.contains("getStackTrace")) {
+
         if (insideSpark) {
           if (skipClass(ste.getClassName)) {
             lastSparkMethod = if (ste.getMethodName == "<init>") {
@@ -1455,7 +1463,7 @@ private[spark] object Utils extends Logging {
             } else {
               ste.getMethodName
             }
-            callStack(0) = ste.toString // Put last Spark method on top of the stack trace.
+            callStack(0) = ste.toString // Put last Spark method on top of the stack trace. 放在栈顶
           } else {
             if (ste.getFileName != null) {
               firstUserFile = ste.getFileName

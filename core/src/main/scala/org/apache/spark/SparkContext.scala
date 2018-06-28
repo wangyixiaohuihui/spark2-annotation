@@ -2003,7 +2003,7 @@ class SparkContext(config: SparkConf) extends Logging {
    * Run a function on a given set of partitions in an RDD and pass the results to the given
    * handler function. This is the main entry point for all actions in Spark.
    *
-   * @param rdd target RDD to run tasks on
+   * @param rdd target RDD to run tasks onrunJob
    * @param func a function to run on each partition of the RDD
    * @param partitions set of partitions to run on; some jobs may not want to compute on all
    * partitions of the target RDD, e.g. for operations like `first()`
@@ -2011,9 +2011,9 @@ class SparkContext(config: SparkConf) extends Logging {
    */
   def runJob[T, U: ClassTag](
       rdd: RDD[T],
-      func: (TaskContext, Iterator[T]) => U,
-      partitions: Seq[Int],
-      resultHandler: (Int, U) => Unit): Unit = {
+  func: (TaskContext, Iterator[T]) => U,
+  partitions: Seq[Int],
+  resultHandler: (Int, U) => Unit): Unit = {
     if (stopped.get()) {
       throw new IllegalStateException("SparkContext has been shutdown")
     }
@@ -2062,6 +2062,8 @@ class SparkContext(config: SparkConf) extends Logging {
       rdd: RDD[T],
       func: Iterator[T] => U,
       partitions: Seq[Int]): Array[U] = {
+
+    // 通过递归遍历闭包里面的引用，检查不能serializable的, 去除unused的引用
     val cleanedFunc = clean(func)
     runJob(rdd, (ctx: TaskContext, it: Iterator[T]) => cleanedFunc(it), partitions)
   }

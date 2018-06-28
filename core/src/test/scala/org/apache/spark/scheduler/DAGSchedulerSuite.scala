@@ -2162,31 +2162,35 @@ class DAGSchedulerSuite extends SparkFunSuite with LocalSparkContext with Timeou
 
     val rddE = new MyRDD(sc, 1, List(shuffleDepA, narrowDepD), tracker = mapOutputTracker)
 
-    println("==========rddA================")
-    scheduler.getShuffleDependencies(rddA).foreach(s=>{
-      println(s.shuffleHandle.shuffleId)
-    })
-
-    println("==========rddB================")
-    scheduler.getShuffleDependencies(rddB).foreach(s=>{
-      println(s.shuffleHandle.shuffleId)
-    })
-    println("==========rddC================")
-    scheduler.getShuffleDependencies(rddC).foreach(s=>{
-      println(s.shuffleHandle.shuffleId)
-    })
-    println("==========rddD================")
-    scheduler.getShuffleDependencies(rddD).foreach(s=>{
-      println(s.shuffleHandle.shuffleId)
-    })
-    println("==========rddE================")
-    scheduler.getShuffleDependencies(rddE).foreach(s=>{
-      println(s.shuffleHandle.shuffleId)
-    })
+//
+//    println("==========rddE================")
+//    scheduler.getShuffleDependencies(rddE).foreach(s=>{
+//      println(s.shuffleHandle.shuffleId)
+//    })
+//
+//
+//
+//    println("==========rddA================")
+//    scheduler.getShuffleDependencies(rddA).foreach(s=>{
+//      println(s.shuffleHandle.shuffleId)
+//    })
+//
+//    println("==========rddB================")
+//    scheduler.getShuffleDependencies(rddB).foreach(s=>{
+//      println(s.shuffleHandle.shuffleId)
+//    })
+//    println("==========rddC================")
+//    scheduler.getShuffleDependencies(rddC).foreach(s=>{
+//      println(s.shuffleHandle.shuffleId)
+//    })
+//    println("==========rddD================")
+//    scheduler.getShuffleDependencies(rddD).foreach(s=>{
+//      println(s.shuffleHandle.shuffleId)
+//    })
 
 
     println("==========================")
-    scheduler.getShuffleDependencies(rddD).foreach(s=>{
+    scheduler.getShuffleDependencies(rddE).foreach(s=>{
       println("----------------:"+ s.shuffleHandle.shuffleId)
       scheduler.getMissingAncestorShuffleDependencies(s.rdd).foreach(s=>{
         println(s.shuffleHandle.shuffleId)

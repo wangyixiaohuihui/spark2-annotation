@@ -415,8 +415,7 @@ class DAGScheduler(
   // 创建给定RDD 的父stage   根据提供的firstJobId 创建stages
   // 所有的stage 切分出来的地方  stage
   private def getOrCreateParentStages(rdd: RDD[_], firstJobId: Int): List[Stage] = {
-
-
+    // 返回当前 rdd 的直接shuffle依赖Map
     val  rddShuffleDependencies =getShuffleDependencies(rdd)
 
     rddShuffleDependencies.foreach(row=>{
@@ -425,15 +424,18 @@ class DAGScheduler(
 
     rddShuffleDependencies.map { shuffleDep =>
       println("getOrCreateShuffleMapStage Dependency:"+ shuffleDep.rdd)
-      getOrCreateShuffleMapStage(shuffleDep, firstJobId) // 根据每一个依赖 创建Stage
+      // 根据每一个shuffle依赖 创建Stage
+      getOrCreateShuffleMapStage(shuffleDep, firstJobId)
     }.toList
   }
 
-  /** Find ancestor shuffle dependencies that are not registered in shuffleToMapStage yet */
+  /** Find ancestor shuffle dependencies that are not registered in shuffleToMapStage yet
+    * 查找尚未在 shuffleToMapStage 中注册的祖先 shuffle 依赖关系
+    * */
    def getMissingAncestorShuffleDependencies(
       rdd: RDD[_]): Stack[ShuffleDependency[_, _, _]] = {
 
-    println("enter getMissingAncestorShuffleDependencies:{}", 5)
+    println("enter getMissingAncestorShuffleDependencies:", 5)
 
     val ancestors = new Stack[ShuffleDependency[_, _, _]]
     val visited = new HashSet[RDD[_]]
@@ -445,7 +447,7 @@ class DAGScheduler(
       val toVisit = waitingForVisit.pop()
       if (!visited(toVisit)) {
         visited += toVisit
-
+        //获取该依赖的父依赖
         val dependency = getShuffleDependencies(toVisit)
 
         dependency.foreach(dep=>{
@@ -1771,28 +1773,40 @@ private[scheduler] class DAGSchedulerEventProcessLoop(dagScheduler: DAGScheduler
     }
   }
 
+  /**
+    * 接收到 DAGSchedulerEvent 时间之后除了
+    * @param event DAGSchedulerEvent 事件信息
+    */
   private def doOnReceive(event: DAGSchedulerEvent): Unit = event match {
+      // 作业提交
     case JobSubmitted(jobId, rdd, func, partitions, callSite, listener, properties) =>
       dagScheduler.handleJobSubmitted(jobId, rdd, func, partitions, callSite, listener, properties)
 
+      // Map Stage 事件
     case MapStageSubmitted(jobId, dependency, callSite, listener, properties) =>
       dagScheduler.handleMapStageSubmitted(jobId, dependency, callSite, listener, properties)
 
+      // stage 取消事件
     case StageCancelled(stageId, reason) =>
       dagScheduler.handleStageCancellation(stageId, reason)
 
+      // Job 取消事件
     case JobCancelled(jobId, reason) =>
       dagScheduler.handleJobCancellation(jobId, reason)
 
+      //Job 组 取消事件
     case JobGroupCancelled(groupId) =>
       dagScheduler.handleJobGroupCancelled(groupId)
 
+      // 所有的job 取消事件
     case AllJobsCancelled =>
       dagScheduler.doCancelAllJobs()
 
+      // executor 分配事件
     case ExecutorAdded(execId, host) =>
       dagScheduler.handleExecutorAdded(execId, host)
 
+      // executor 丢失事件
     case ExecutorLost(execId, reason) =>
       val filesLost = reason match {
         case SlaveLost(_, true) => true
@@ -1800,18 +1814,21 @@ private[scheduler] class DAGSchedulerEventProcessLoop(dagScheduler: DAGScheduler
       }
       dagScheduler.handleExecutorLost(execId, filesLost)
 
+
     case BeginEvent(task, taskInfo) =>
       dagScheduler.handleBeginEvent(task, taskInfo)
 
     case GettingResultEvent(taskInfo) =>
       dagScheduler.handleGetTaskResult(taskInfo)
 
+      // 处理完成事件
     case completion: CompletionEvent =>
       dagScheduler.handleTaskCompletion(completion)
 
     case TaskSetFailed(taskSet, reason, exception) =>
       dagScheduler.handleTaskSetFailed(taskSet, reason, exception)
 
+    // 处理重新提交失败stage事件
     case ResubmitFailedStages =>
       dagScheduler.resubmitFailedStages()
   }
