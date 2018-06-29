@@ -313,7 +313,8 @@ class DAGScheduler(
         println("shuffleIdToMapStage not contains "+ shuffleDep.shuffleId )
         // Create stages for all missing ancestor shuffle dependencies.
         // 获取 爷爷辈的rdd的依赖
-        // getMissingAncestorShuffleDependencies(shuffleDep.rdd) 查找当前父RDD的shuffle 依赖栈， 栈顶是最前面的shuffle 依赖
+        // getMissingAncestorShuffleDependencies(shuffleDep.rdd) 查找当前父RDD的shuffle 依赖栈，
+        // 栈顶是最前面的shuffle 依赖
         // getMissingAncestorShuffleDependencies 底层寻找 shuffle 依赖也是调用  getShuffleDependencies
         println("getMissingAncestorShuffleDependencies:"+ shuffleDep.rdd )
         val missingAncestorShuffleDependencies = getMissingAncestorShuffleDependencies(shuffleDep.rdd)
