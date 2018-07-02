@@ -304,25 +304,22 @@ class DAGScheduler(
       shuffleDep: ShuffleDependency[_, _, _],
       firstJobId: Int): ShuffleMapStage = {
 
-    println("enter getOrCreateShuffleMapStage "+ shuffleDep.shuffleHandle.shuffleId + "  firstJobId:"+firstJobId)
+    println("4 enter getOrCreateShuffleMapStage "+ shuffleDep.shuffleHandle.shuffleId
+      + "  firstJobId:"+firstJobId)
 
     shuffleIdToMapStage.get(shuffleDep.shuffleId) match {
       case Some(stage) =>
-        println("shuffleIdToMapStage contains "+ shuffleDep.shuffleId )
+        println("4 shuffleIdToMapStage contains "+ shuffleDep.shuffleId )
         stage
 
       case None => // 当前依赖不存在 Stage 需要创建
-        println("shuffleIdToMapStage not contains "+ shuffleDep.shuffleId  + " firstJobId:"+firstJobId )
+        println("4 shuffleIdToMapStage not contains "+ shuffleDep.shuffleId  + " firstJobId:"+firstJobId )
         // Create stages for all missing ancestor shuffle dependencies.
         // 获取 爷爷辈的rdd的依赖
         // getMissingAncestorShuffleDependencies(shuffleDep.rdd) 查找当前父RDD的shuffle 依赖栈，
         // 栈顶是最前面的shuffle 依赖
         // getMissingAncestorShuffleDependencies 底层寻找 shuffle 依赖也是调用  getShuffleDependencies
         val missingAncestorShuffleDependencies = getMissingAncestorShuffleDependencies(shuffleDep.rdd)
-
-        missingAncestorShuffleDependencies.foreach(s=>{
-          println("return missingAncestorShuffleDependencies："+ s.rdd)
-        })
 
         missingAncestorShuffleDependencies.foreach { dep =>
           // Even though getMissingAncestorShuffleDependencies only returns shuffle dependencies
@@ -332,11 +329,12 @@ class DAGScheduler(
           // SPARK-13902 for more information.
 //          println("missingAncestorShuffleDependencies: "+ dep.rdd)
           if (!shuffleIdToMapStage.contains(dep.shuffleId)) {
-            println("shuffleIdToMapStage not contains: "+ dep.shuffleId)
+            println("4 shuffleIdToMapStage not contains: "+ dep.shuffleId)
             createShuffleMapStage(dep, firstJobId) // 创建当前的shuffleDep 前面的Shuffle 依赖的Stage
           }
         }
         // Finally, create a stage for the given shuffle dependency.
+        println("4 finally createShuffleMapStage: "+shuffleDep.shuffleHandle.shuffleId + "   firstJobId:"+ firstJobId)
         createShuffleMapStage(shuffleDep, firstJobId) // 创建当前的ShuffleDep 前面的shuffle 依赖的Stage
     }
   }
@@ -349,7 +347,7 @@ class DAGScheduler(
    */
   def createShuffleMapStage(shuffleDep: ShuffleDependency[_, _, _], jobId: Int): ShuffleMapStage = {
 
-    println("createShuffleMapStage:"+ shuffleDep.rdd + "  jobId:"+jobId)
+    println("6 enter createShuffleMapStage:"+ shuffleDep.rdd + "  jobId:"+jobId)
     val rdd = shuffleDep.rdd
 
     // Tasks的个数，由此可见，Stage的并行度是由该Stage内的最后一个RDD的partitions的个数所决定的
@@ -357,9 +355,11 @@ class DAGScheduler(
 
     val parents = getOrCreateParentStages(rdd, jobId)
     val id = nextStageId.getAndIncrement()
-    // 实例化ShuffleMapStage
-    println("new ShuffleMapStage:"+ rdd +" parents:"+parents.mkString("@"+"  jobId:"+jobId + "   shuffleDep"+ shuffleDep.shuffleHandle.shuffleId))
+
     val stage = new ShuffleMapStage(id, rdd, numTasks, parents, jobId, rdd.creationSite, shuffleDep)
+    // 实例化ShuffleMapStage
+    println("6 new ShuffleMapStage:"+ rdd
+      +" parents:"+parents.mkString("@"+"  jobId:"+jobId + "   shuffleDep"+ shuffleDep.shuffleHandle.shuffleId))
 
     stageIdToStage(id) = stage
     shuffleIdToMapStage(shuffleDep.shuffleId) = stage
@@ -398,11 +398,12 @@ class DAGScheduler(
       callSite: CallSite): ResultStage = {
 
     // 返回父stage
-    println("enter createResultStage:"+rdd+"    jobId:"+jobId)
+    println("2 enter createResultStage:"+rdd+"    jobId:"+jobId)
     val parents = getOrCreateParentStages(rdd, jobId) // 划分调用 返回一个List[Stage]
     val id = nextStageId.getAndIncrement()
-    println("return getOrCreateParentStages rdd is :"+rdd  + " stage Id is:"+ id + "parents Stages:"+ parents.mkString("##") )
     val stage = new ResultStage(id, rdd, func, partitions, parents, jobId, callSite)
+    println("2 return createResultStage rdd is :"+rdd  + " stage Id is:"+ id + "parents Stages:"+ parents.mkString("##") )
+
     stageIdToStage(id) = stage
     updateJobIdStageIdMaps(jobId, stage)
     stage
@@ -417,18 +418,18 @@ class DAGScheduler(
   // 创建给定RDD 的父stage   根据提供的firstJobId 创建stages
   // 所有的stage 切分出来的地方  stage
   private def getOrCreateParentStages(rdd: RDD[_], firstJobId: Int): List[Stage] = {
-    println("enter getOrCreateParentStages:"+rdd + "  firstJob:"+firstJobId)
+    println("3 enter getOrCreateParentStages:"+rdd + "  firstJob:"+firstJobId)
     // 返回当前 rdd 的直接shuffle依赖Map
     val  rddShuffleDependencies =getShuffleDependencies(rdd)
 
-    rddShuffleDependencies.foreach(row=>{
-      println(" return getShuffleDependencies: "+ row.rdd)
-    })
-
-    rddShuffleDependencies.map { shuffleDep =>
+    val shuffleMapStages = rddShuffleDependencies.map { shuffleDep =>
       // 根据每一个shuffle依赖 创建Stage
       getOrCreateShuffleMapStage(shuffleDep, firstJobId)
     }.toList
+
+    println("3 result getOrCreateShuffleMapStage:"+ shuffleMapStages.mkString("#"))
+
+    shuffleMapStages
   }
 
   /** Find ancestor shuffle dependencies that are not registered in shuffleToMapStage yet
@@ -437,7 +438,7 @@ class DAGScheduler(
    def getMissingAncestorShuffleDependencies(
       rdd: RDD[_]): Stack[ShuffleDependency[_, _, _]] = {
 
-    println("enter getMissingAncestorShuffleDependencies:", rdd)
+    println("5 enter getMissingAncestorShuffleDependencies:"+rdd)
 
     val ancestors = new Stack[ShuffleDependency[_, _, _]]
     val visited = new HashSet[RDD[_]]
@@ -451,10 +452,6 @@ class DAGScheduler(
         visited += toVisit
         //获取该依赖的父依赖
         val dependency = getShuffleDependencies(toVisit)
-
-        dependency.foreach(dep=>{
-          println(toVisit + "-> getShuffleDependencies" + dep.rdd)
-        })
         dependency.foreach { shuffleDep =>
           if (!shuffleIdToMapStage.contains(shuffleDep.shuffleId)) {
             ancestors.push(shuffleDep)
@@ -464,6 +461,10 @@ class DAGScheduler(
         }
       }
     }
+     ancestors.foreach(row=>{
+       println("5 result getMissingAncestorShuffleDependencies:"+row.shuffleHandle.shuffleId)
+     })
+
     ancestors
   }
 
@@ -481,6 +482,7 @@ class DAGScheduler(
    */
   private[scheduler] def getShuffleDependencies(rdd: RDD[_]): HashSet[ShuffleDependency[_, _, _]] = {
 
+    println("4 enter getShuffleDependencies:"+ rdd)
     // 实例化一个空的集合用来存储ShuffleDependency
     val parents = new HashSet[ShuffleDependency[_, _, _]]
 
@@ -505,6 +507,9 @@ class DAGScheduler(
             waitingForVisit.push(dependency.rdd)
         }
       }
+    }
+    for (elem <- parents) {
+      println("4 result getShuffleDependencies:"+ elem.shuffleHandle.shuffleId)
     }
     parents
   }
@@ -935,8 +940,9 @@ class DAGScheduler(
       // New stage creation may throw an exception if, for example, jobs are run on a
       // HadoopRDD whose underlying HDFS files have been deleted.
       // 实例化ResultStage
-      logInfo("createResultStage :" + finalRDD)
+      logInfo("1. createResultStage :" + finalRDD)
       finalStage = createResultStage(finalRDD, func, partitions, jobId, callSite) // 从后向前 划分stage
+      println("final stage is:"+finalStage)
     } catch {
       case e: Exception =>
         logWarning("Creating new stage failed due to exception - job: " + jobId, e)
