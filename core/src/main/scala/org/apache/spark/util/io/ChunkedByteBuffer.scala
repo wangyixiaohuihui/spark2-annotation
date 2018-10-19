@@ -35,6 +35,8 @@ import org.apache.spark.storage.StorageUtils
  *               Ownership of these buffers is transferred to the ChunkedByteBuffer, so if these
  *               buffers may also be used elsewhere then the caller is responsible for copying
  *               them as needed.
+  *
+  *               每一个ByteBuffer 为一个Chunk
  */
 private[spark] class ChunkedByteBuffer(var chunks: Array[ByteBuffer]) {
   require(chunks != null, "chunks must not be null")

@@ -55,6 +55,8 @@ private[spark] class DiskBlockManager(conf: SparkConf, deleteFilesOnStop: Boolea
   // org.apache.spark.network.shuffle.ExternalShuffleBlockResolver#getFile().
   def getFile(filename: String): File = {
     // Figure out which local directory it hashes to, and which subdirectory in that
+    // 根据文件名的hash值获取一级目录和二级子目录的索引值，其中一级目录索引值为hash值 与 一级目录个数的摸
+    // 二级子目录索引值为hash与二级子目录个数的模
     val hash = Utils.nonNegativeHash(filename)
     val dirId = hash % localDirs.length
     val subDirId = (hash / localDirs.length) % subDirsPerLocalDir
@@ -65,15 +67,17 @@ private[spark] class DiskBlockManager(conf: SparkConf, deleteFilesOnStop: Boolea
       if (old != null) {
         old
       } else {
+        //  如果目录不存在，则创建该目录，范围在00-63
         val newDir = new File(localDirs(dirId), "%02x".format(subDirId))
         if (!newDir.exists() && !newDir.mkdir()) {
           throw new IOException(s"Failed to create local dir in $newDir.")
         }
+        // 判断该文件是否存在，如果不存在则创建
         subDirs(dirId)(subDirId) = newDir
         newDir
       }
     }
-
+    // 通过文件的路径返回文件的句柄，并且返回
     new File(subDir, filename)
   }
 

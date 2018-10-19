@@ -45,14 +45,17 @@ class BlockManagerMasterEndpoint(
   extends ThreadSafeRpcEndpoint with Logging {
 
   // Mapping from block manager id to the block manager's information.
-  //  记录了BlockManagerId与BlockManagerInfo的映射
+  //  记录了BlockManagerId 与BlockManagerInfo 的映射
+  // BlockManagerInfo 包含了Executor 内存使用情况，数据块的使用情况，已经被缓存的数据块 和 Executor 终端点的引用，
+  // 通过该引用可以向Executor 发送消息
   private val blockManagerInfo = new mutable.HashMap[BlockManagerId, BlockManagerInfo]
 
   // Mapping from executor ID to block manager ID.
-  // executor与blockManager的映射
+  // executorId 与blockManagerId的映射
   private val blockManagerIdByExecutor = new mutable.HashMap[String, BlockManagerId]
 
   // Mapping from block id to the set of block managers that have the block.
+  // BlockId 和BlockManagerId 序列所对应的列表，因为一个数据块可能存储多个副本，保存在多个Executor中
   private val blockLocations = new JHashMap[BlockId, mutable.HashSet[BlockManagerId]]
 
   private val askThreadPool = ThreadUtils.newDaemonCachedThreadPool("block-manager-ask-thread-pool")
@@ -72,6 +75,7 @@ class BlockManagerMasterEndpoint(
 
   logInfo("BlockManagerMasterEndpoint up")
 
+  // 收到slave 的消息
   override def receiveAndReply(context: RpcCallContext): PartialFunction[Any, Unit] = {
     case RegisterBlockManager(blockManagerId, maxOnHeapMemSize, maxOffHeapMemSize, slaveEndpoint) =>
       context.reply(register(blockManagerId, maxOnHeapMemSize, maxOffHeapMemSize, slaveEndpoint))
@@ -144,7 +148,7 @@ class BlockManagerMasterEndpoint(
 
   private def removeRdd(rddId: Int): Future[Seq[Int]] = {
     // First remove the metadata for the given RDD, and then asynchronously remove the blocks
-    // from the slaves.
+    // from the slaves. 移除元数据信息 在BlockManagerMaster中   blockManagerInfo   和 blockLocations
 
     // Find all blocks for the given RDD, remove the block from both blockLocations and
     // the blockManagerInfo that is tracking the blocks.
@@ -157,6 +161,7 @@ class BlockManagerMasterEndpoint(
 
     // Ask the slaves to remove the RDD, and put the result in a sequence of Futures.
     // The dispatcher is used as an implicit argument into the Future sequence construction.
+    //  通知 BlockManagerSlaverEndpoint 终端点，通知其删除该Executor上的RDD
     val removeMsg = RemoveRdd(rddId)
     Future.sequence(
       blockManagerInfo.values.map { bm =>

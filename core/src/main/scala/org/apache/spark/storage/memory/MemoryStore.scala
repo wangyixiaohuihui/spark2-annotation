@@ -86,7 +86,10 @@ private[spark] class MemoryStore(
 
   // Note: all changes to memory allocations, notably putting blocks, evicting blocks, and
   // acquiring or releasing unroll memory, must be synchronized on `memoryManager`!
-
+  // 对该map 数据结构进行操作的时候需要严格遵循同步的原则， 因为一个Executor会对应一个MemoryStore，
+  // 而一个Executor有多个core的时候会并行执行Task，就会有多个线程共享使用一块Storage Memory，
+  // 即共享使用这一个LinkedHashMap，修改LinkedHashMap时需要做到同步
+  // accessOrder =true 形成一个LRU 算法的队列，被访问到的元素会被加到 链表的最后
   private val entries = new LinkedHashMap[BlockId, MemoryEntry[_]](32, 0.75f, true)
 
   // A mapping from taskAttemptId to amount of memory used for unrolling a block (in bytes)
@@ -96,7 +99,7 @@ private[spark] class MemoryStore(
   // always stores serialized values.
   private val offHeapUnrollMemoryMap = mutable.HashMap[Long, Long]()
 
-  // Initial memory to request before unrolling any block
+  // Initial memory to request before unrolling any block 1M
   private val unrollMemoryThreshold: Long =
     conf.getLong("spark.storage.unrollMemoryThreshold", 1024 * 1024)
 
@@ -137,6 +140,11 @@ private[spark] class MemoryStore(
    * The caller should guarantee that `size` is correct.
    *
    * @return true if the put() succeeded, false otherwise.
+    *
+    *         对于经序列化的Partition 在转化为Block 进行存储时， 因为在存储的就知道序列化的ByetBuffer的size
+    *       其所需要的unroll 空间， 可以直接累加计算，一次申请。 存储使用putyBytes方法
+    *
+    *
    */
   def putBytes[T: ClassTag](
       blockId: BlockId,
@@ -187,33 +195,33 @@ private[spark] class MemoryStore(
     // Number of elements unrolled so far 内存展开元素的数量
     var elementsUnrolled = 0
     // Whether there is still enough memory for us to continue unrolling this block
-    // 是否存在足够的内存 用于继续展开该数据块  true 表示有  false 表示没有
+    // 是否存在足够的内存 用于继续展开该数据块：true 表示有，false 表示没有
     var keepUnrolling = true
 
     // Initial per-task memory to request for unrolling blocks (bytes).
-    // 每一个展开线程初始化内存大小  这里设置为  conf.getLong("spark.storage.unrollMemoryThreshold", 1024 * 1024)
+    // 每一个展开线程初始化内存大小  这里设置为conf.getLong("spark.storage.unrollMemoryThreshold", 1024 * 1024)
     val initialMemoryThreshold = unrollMemoryThreshold
 
     // How often to check whether we need to request more memory
-    // 数据块在展开过程中 设置没经过几次展开动作 去检查 是否申请内存 默认为16
+    // 数据块在展开过程中,设置每经过几次展开动作去检查是否申请内存->默认为16
     val memoryCheckPeriod = 16
     // Memory currently reserved by this task for this particular unrolling operation
-    // 当前线程保留 用于处理展开操作保留的内存的大小
+    // 当前线程保留,用于处理展开操作保留的内存的大小
     var memoryThreshold = initialMemoryThreshold
     // Memory to request as a multiple of current vector size
-    // 内存增长因子 每次请求内存大小为：  该因子 乘以 Vector 大小， 减去 memoryThreshold
+    // 内存增长因子,每次请求内存大小为:该因子乘以 Vector 大小， 减去 memoryThreshold
     val memoryGrowthFactor = 1.5
 
     // Keep track of unroll memory used by this particular block / putIterator() operation
-    // 展开该数据块 已经使用内存大小
+    // 展开该数据块,已经使用内存大小
     var unrollMemoryUsedByThisBlock = 0L
 
     // Underlying vector for unrolling the block
-    // 用户跟踪该数据块 展开所使用的内存大小
+    // 用户跟踪该数据块,展开所使用的内存大小
     var vector = new SizeTrackingVector[T]()(classTag)
 
     // Request enough memory to begin unrolling
-    // 在数据展开之前 根据设置该线程 尝试获取初始化 内存
+    // 在数据展开之前,根据设置该线程尝试获取初始化 内存
     keepUnrolling =
       reserveUnrollMemoryForThisTask(blockId, initialMemoryThreshold, MemoryMode.ON_HEAP)
 
@@ -237,8 +245,8 @@ private[spark] class MemoryStore(
         if (currentSize >= memoryThreshold) {
           val amountToRequest = (currentSize * memoryGrowthFactor - memoryThreshold).toLong
 
-          // 申请需要增加的内存， 如果申请成功 则把内存加到已使用内存中
-          // 而该展开线程 获取的内存大小为： 当前展开带线啊哦 * 内存增长因子
+          // 申请需要增加的内存， 如果申请成功，则把内存加到已使用内存中
+          // 而该展开线程 获取的内存大小为： 当前展开大小 * 内存增长因子
           keepUnrolling =
             reserveUnrollMemoryForThisTask(blockId, amountToRequest, MemoryMode.ON_HEAP)
           if (keepUnrolling) {
@@ -253,14 +261,15 @@ private[spark] class MemoryStore(
 
     if (keepUnrolling) {
       // We successfully unrolled the entirety of this block
-      //  成功的在内存中展开数据块， 估算 该数据块在内存中存储的大小
+      //  成功的在内存中展开数据块， 估算该数据块在内存中存储的大小
+      // 对于非序列化的数据存储， 直接按照array的方式进行存储，可以直接返回装有数据的Iterator
       val arrayValues = vector.toArray
       vector = null
       val entry =
         new DeserializedMemoryEntry[T](arrayValues, SizeEstimator.estimate(arrayValues), classTag)
       val size = entry.size
 
-      // 定义内部方法 该方法中释放该数据块在内存中展开的空间  然后判断该内存是否足够用于写入数据
+      // 定义内部方法,该方法中释放该数据块在内存中展开的空间,然后判断该内存是否足够用于写入数据
       def transferUnrollToStorage(amount: Long): Unit = {
         // Synchronize so that transfer is atomic
         memoryManager.synchronized {

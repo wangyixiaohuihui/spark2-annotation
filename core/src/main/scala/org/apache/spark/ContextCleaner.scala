@@ -119,7 +119,10 @@ private[spark] class ContextCleaner(sc: SparkContext) extends Logging {
     listeners.add(listener)
   }
 
-  /** Start the cleaner. */
+  /** Start the cleaner.
+    *
+    * 设置为守护线程
+    * */
   def start(): Unit = {
     cleaningThread.setDaemon(true)
     cleaningThread.setName("Spark Context Cleaner")
@@ -174,7 +177,8 @@ private[spark] class ContextCleaner(sc: SparkContext) extends Logging {
     referenceBuffer.add(new CleanupTaskWeakReference(task, objectForCleanup, referenceQueue))
   }
 
-  /** Keep cleaning RDD, shuffle, and broadcast state. */
+  /** Keep cleaning RDD, shuffle, and broadcast state.
+    * 保持一个干净的RDD  shuffle  broadcast 状态 */
   private def keepCleaning(): Unit = Utils.tryOrStopSparkContext(sc) {
     while (!stopped) {
       try {
@@ -185,6 +189,7 @@ private[spark] class ContextCleaner(sc: SparkContext) extends Logging {
           reference.foreach { ref =>
             logDebug("Got cleaning task " + ref.task)
             referenceBuffer.remove(ref)
+            // 清除Shuffle和Broadcast相关的数据会分别调用doCleanupShuffle和doCleanupBroadcast函数。根据需要清除数据的类型分别调用
             ref.task match {
               case CleanRDD(rddId) =>
                 doCleanupRDD(rddId, blocking = blockOnCleanupTasks)

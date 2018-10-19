@@ -91,8 +91,10 @@ private[spark] class ShuffleMapTask(
 
     var writer: ShuffleWriter[Any, Any] = null
     try {
+      // 从SparkEnv获取ShuffleManager，在系统启动时，会根据设置进行初始化
       val manager = SparkEnv.get.shuffleManager
       writer = manager.getWriter[Any, Any](dep.shuffleHandle, partitionId, context)
+      // 调用RDD进行计算，通过HashShuffleWriter的writer方法把RDD的计算结果持久化
       writer.write(rdd.iterator(partition, context).asInstanceOf[Iterator[_ <: Product2[Any, Any]]])
       writer.stop(success = true).get
     } catch {

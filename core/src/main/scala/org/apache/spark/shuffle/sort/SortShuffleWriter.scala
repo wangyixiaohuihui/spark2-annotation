@@ -49,7 +49,9 @@ private[spark] class SortShuffleWriter[K, V, C](
 
   /** Write a bunch of records to this task's output */
   override def write(records: Iterator[Product2[K, V]]): Unit = {
+    // 获取shuffle Map Task输出结果的排序方式
     sorter = if (dep.mapSideCombine) {
+      // 当输结果需要combine,那么需要在外部排序中进行聚合
       require(dep.aggregator.isDefined, "Map-side combine without Aggregator specified!")
       new ExternalSorter[K, V, C](
         context, dep.aggregator, Some(dep.partitioner), dep.keyOrdering, dep.serializer)
@@ -57,20 +59,30 @@ private[spark] class SortShuffleWriter[K, V, C](
       // In this case we pass neither an aggregator nor an ordering to the sorter, because we don't
       // care whether the keys get sorted in each partition; that will be done on the reduce side
       // if the operation being run is sortByKey.
+      // 其它情况下外部排序不需要聚合
       new ExternalSorter[K, V, V](
         context, aggregator = None, Some(dep.partitioner), ordering = None, dep.serializer)
     }
+    // 根据获取的排序方式，对数据进行排序并写入到内存缓冲区. 如果排序中的Map占用的内存已经超过了
+    // 使用的阈值，则将Map中的内容溢写到磁盘中，每一次溢写产生一个不同的文件
     sorter.insertAll(records)
 
     // Don't bother including the time to open the merged output file in the shuffle write time,
     // because it just opens a single file, so is typically too fast to measure accurately
     // (see SPARK-3570).
+    // 根据Shuffle编号和map编号，获取该数据文件
     val output = shuffleBlockResolver.getDataFile(dep.shuffleId, mapId)
     val tmp = Utils.tempFileWith(output)
     try {
       val blockId = ShuffleBlockId(dep.shuffleId, mapId, IndexShuffleBlockResolver.NOOP_REDUCE_ID)
+      // 在外部排序中可能有一部分的计算结果在内存中，另外一部分的结果数据溢写到一个或者多个文件中，
+      // 这时通过merge操作将内存和spill文件中的内容合到一个文件中
       val partitionLengths = sorter.writePartitionedFile(blockId, tmp)
+
+      // 创建索引文件，将每个partition的在数据中的起始位置和结束位置写入到索引文件
       shuffleBlockResolver.writeIndexFileAndCommit(dep.shuffleId, mapId, partitionLengths, tmp)
+
+      // 将元数据信息写到MapStatus中，后续的任务可以通过MapStatus得到处理结果信息
       mapStatus = MapStatus(blockManager.shuffleServerId, partitionLengths)
     } finally {
       if (tmp.exists() && !tmp.delete()) {

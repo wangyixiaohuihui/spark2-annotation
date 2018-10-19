@@ -333,11 +333,14 @@ abstract class RDD[T: ClassTag](
     val blockId = RDDBlockId(id, partition.index)
     var readCachedBlock = true
     // This method is called on executors, so we need call SparkEnv.get instead of sc.env.
-    // 在Executor 中调用, 使用SparkEnv.get  代替 SparkEnv.get
+    // 该方法由Executor调用, 使用SparkEnv.get  代替 SparkEnv.get
+    // 根据数据块BlockId  先读取数据然后更新数据，这里是写数据入口
     SparkEnv.get.blockManager.getOrElseUpdate(blockId, storageLevel, elementClassTag, () => {
+      // 如果数据不在内存，则尝试读取检查点结果进行迭代计算
       readCachedBlock = false
       computeOrReadCheckpoint(partition, context)
     }) match {
+        // 对getOrElseUpdate 返回结果处理，记录结果度量信息
       case Left(blockResult) => // 命中缓存
         if (readCachedBlock) {
           // 记录度量信息
@@ -352,6 +355,7 @@ abstract class RDD[T: ClassTag](
         } else {
           new InterruptibleIterator(context, blockResult.data.asInstanceOf[Iterator[T]])
         }
+      // 结果标识保存失败， 例如数据太大无法放到内存中，也无法磁盘中保存，结果直接返回给调用方
       case Right(iter) =>
         new InterruptibleIterator(context, iter.asInstanceOf[Iterator[T]])
     }

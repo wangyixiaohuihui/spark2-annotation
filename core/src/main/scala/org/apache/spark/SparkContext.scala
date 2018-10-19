@@ -432,6 +432,7 @@ class SparkContext(config: SparkConf) extends Logging {
     listenerBus.addListener(jobProgressListener)
 
     // Create the Spark execution environment (cache, map output tracker, etc)
+    // 创建 sparkEnv Driver 端
     _env = createSparkEnv(_conf, isLocal, listenerBus)
     SparkEnv.set(_env)
 
@@ -555,6 +556,10 @@ class SparkContext(config: SparkConf) extends Logging {
       }
     _executorAllocationManager.foreach(_.start())
 
+    /**
+      *  spakr context 中
+      *  启动 cleaner 线程  ContextCleaner
+      */
     _cleaner =
       if (_conf.getBoolean("spark.cleaner.referenceTracking", true)) {
         Some(new ContextCleaner(this))
@@ -563,6 +568,7 @@ class SparkContext(config: SparkConf) extends Logging {
       }
     _cleaner.foreach(_.start())
 
+    // 启动 Listener 监听线程
     setupAndStartListenerBus()
     postEnvironmentUpdate()
     postApplicationStart()
@@ -2760,12 +2766,14 @@ object SparkContext extends Logging {
         }
         (backend, scheduler)
 
+      // 匹配变量名称
       case masterUrl =>
         val cm = getClusterManager(masterUrl) match {
           case Some(clusterMgr) => clusterMgr
           case None => throw new SparkException("Could not parse Master URL: '" + master + "'")
         }
         try {
+          // 获取yarn 相关的 YarnClusterScheduler, YarnScheduler, YarnClusterSchedulerBackend, YarnClientSchedulerBackend
           val scheduler = cm.createTaskScheduler(sc, masterUrl)
           val backend = cm.createSchedulerBackend(sc, masterUrl, scheduler)
           cm.initialize(scheduler, backend)
@@ -2778,8 +2786,15 @@ object SparkContext extends Logging {
     }
   }
 
+  /**
+    * 针对 yarn  mesos Scheduler
+    * @param url url
+    * @return
+    */
   private def getClusterManager(url: String): Option[ExternalClusterManager] = {
     val loader = Utils.getContextOrSparkClassLoader
+
+    // 加载所有的ExternalClusterManager 实现类
     val serviceLoaders =
       ServiceLoader.load(classOf[ExternalClusterManager], loader).asScala.filter(_.canCreate(url))
     if (serviceLoaders.size > 1) {

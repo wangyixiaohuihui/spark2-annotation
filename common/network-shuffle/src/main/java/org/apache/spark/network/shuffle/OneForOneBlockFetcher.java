@@ -109,6 +109,7 @@ public class OneForOneBlockFetcher {
       throw new IllegalArgumentException("Zero-sized blockIds array");
     }
 
+    // 通过客户端发送读取消息块消息
     client.sendRpc(openMessage.toByteBuffer(), new RpcResponseCallback() {
       @Override
       public void onSuccess(ByteBuffer response) {

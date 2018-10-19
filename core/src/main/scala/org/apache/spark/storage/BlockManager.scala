@@ -217,6 +217,8 @@ private[spark] class BlockManager(
   def initialize(appId: String): Unit = {
 
     // 启动 BlockTransferService 和 ShuffleClient
+    // 在Executor 端启动远程数据传输服务，根据配置启动传输服务器BlockTransferServer，
+    // 该服务器启动之后，等待其他节点发送请求消息
     blockTransferService.init(this)
     shuffleClient.init(appId)
 
@@ -234,6 +236,8 @@ private[spark] class BlockManager(
       BlockManagerId(executorId, blockTransferService.hostName, blockTransferService.port, None)
 
     // 注册blockManager  向blockManagerMaster
+    // 把Executor 的BlockManager 注册到BlockManagerMaster 中，其中包括其终端点BlockManagerSlaverEndpoint 的引用
+    // 这样Master 端持有了改引用可以向Executor 发送信息
     val idFromMaster = master.registerBlockManager(
       id,
       maxOnHeapMemory,
@@ -242,7 +246,8 @@ private[spark] class BlockManager(
 
     blockManagerId = if (idFromMaster != null) idFromMaster else id
 
-    //如果存在ExternalShuffleServer则需注册ExternalShuffleServer
+    //如果存在ExternalShuffleServer则需注册ExternalShuffleServer, 加入外部shuffle服务端口信息
+    // 否则 使用 BlockManagerId
     shuffleServerId = if (externalShuffleServiceEnabled) {
       logInfo(s"external shuffle service port = $externalShuffleServicePort")
       BlockManagerId(executorId, blockTransferService.hostName, externalShuffleServicePort)
@@ -517,14 +522,17 @@ private[spark] class BlockManager(
         val taskAttemptId = Option(TaskContext.get()).map(_.taskAttemptId())
         if (level.useMemory && memoryStore.contains(blockId)) {
           val iter: Iterator[Any] = if (level.deserialized) {
+            // 使用内存存储级别，并且在内存中查找到该数据
             memoryStore.getValues(blockId).get
           } else {
+            // 若存储时未使用反序列化，则内存中的数据需要做反序列化处理
             serializerManager.dataDeserializeStream(
               blockId, memoryStore.getBytes(blockId).get.toInputStream())(info.classTag)
           }
           // We need to capture the current taskId in case the iterator completion is triggered
           // from a different thread which does not have TaskContext set; see SPARK-18406 for
           // discussion.
+          // 数据读取完毕之后，返回数据以及数据块的大小，读取方法等信息
           val ci = CompletionIterator[Any, Iterator[Any]](iter, {
             releaseLock(blockId, taskAttemptId)
           })
@@ -532,18 +540,23 @@ private[spark] class BlockManager(
         } else if (level.useDisk && diskStore.contains(blockId)) {
           val diskData = diskStore.getBytes(blockId)
           val iterToReturn: Iterator[Any] = {
+            // 从磁盘中获取数据， 由于保存到磁盘中的数据是需要序列化的，读取得到的数据也是序列化的
             if (level.deserialized) {
+              // 如果存储级别需要反序列化，则把读取的数据反序列化，然后存储到内存中
               val diskValues = serializerManager.dataDeserializeStream(
                 blockId,
                 diskData.toInputStream())(info.classTag)
               maybeCacheDiskValuesInMemory(info, blockId, level, diskValues)
             } else {
+              // 如果存储级别不需要反序列化，则直接把这些序列化的数据存储到内存中
               val stream = maybeCacheDiskBytesInMemory(info, blockId, level, diskData)
                 .map { _.toInputStream(dispose = false) }
                 .getOrElse { diskData.toInputStream() }
+              // 返回的数据进行反序列化处理
               serializerManager.dataDeserializeStream(blockId, stream)(info.classTag)
             }
           }
+          // 数据读取完毕之后，返回数据以及数据块的大小，读取方法等信息
           val ci = CompletionIterator[Any, Iterator[Any]](iterToReturn, {
             releaseLockAndDispose(blockId, diskData, taskAttemptId)
           })
@@ -632,6 +645,7 @@ private[spark] class BlockManager(
    * Return a list of locations for the given block, prioritizing the local machine since
    * multiple block managers can share the same host.
    *  获取数据块所在的位置信息 按照 host 是否是本地host  先后顺序排序
+    *  向BlockManagerMaster 发送消息，获取BlockId的存储location
    */
   private def getLocations(blockId: BlockId): Seq[BlockManagerId] = {
     val locs = Random.shuffle(master.getLocations(blockId))
@@ -641,18 +655,21 @@ private[spark] class BlockManager(
 
   /**
    * Get block from remote block managers as serialized bytes.
+    * 远程读取数据方法
    */
   def getRemoteBytes(blockId: BlockId): Option[ChunkedByteBuffer] = {
     logDebug(s"Getting remote block $blockId")
     require(blockId != null, "BlockId is null")
     var runningFailureCount = 0
     var totalFailureCount = 0
+    // 获取BlockId的存储位置信息 优先本地节点路径信息
     val locations = getLocations(blockId)
     val maxFetchFailures = locations.size
     var locationIterator = locations.iterator
     while (locationIterator.hasNext) {
       val loc = locationIterator.next()
       logDebug(s"Getting remote block $blockId from $loc")
+      // 通过BlockTransferService  提供的fetchBlockSync 方法获取远程数据
       val data = try {
         blockTransferService.fetchBlockSync(
           loc.host, loc.port, loc.executorId, blockId.toString).nioByteBuffer()
@@ -705,11 +722,13 @@ private[spark] class BlockManager(
    * automatically be freed once the result's `data` iterator is fully consumed.
    */
   def get[T: ClassTag](blockId: BlockId): Option[BlockResult] = {
+    // 本地节点使用
     val local = getLocalValues(blockId)
     if (local.isDefined) {
       logInfo(s"Found block $blockId locally")
       return local
     }
+    // 远程节点读取
     val remote = getRemoteValues[T](blockId)
     if (remote.isDefined) {
       logInfo(s"Found block $blockId remotely")
@@ -765,6 +784,7 @@ private[spark] class BlockManager(
       makeIterator: () => Iterator[T]): Either[BlockResult, Iterator[T]] = {
     // Attempt to read the block from local or remote storage. If it's present, then we don't need
     // to go through the local-get-or-put path.
+    // 读取数据，尝试从本地或者远程读取数据
     get[T](blockId)(classTag) match {
       case Some(block) =>
         return Left(block)
@@ -772,6 +792,7 @@ private[spark] class BlockManager(
         // Need to compute the block.
     }
     // Initially we hold no locks on this block.
+    // 写数据入口
     doPutIterator(blockId, makeIterator, level, classTag, keepReadLock = true) match {
       case None =>
         // doPut() didn't hand work back to us, so the block already existed or was successfully
@@ -1043,6 +1064,7 @@ private[spark] class BlockManager(
       classTag: ClassTag[T],
       tellMaster: Boolean = true,
       keepReadLock: Boolean = false): Option[PartiallyUnrolledIterator[T]] = {
+    // 辅助类  用户获取数据块信息，并对写数据结果进行处理
     doPut(blockId, level, classTag, tellMaster = tellMaster, keepReadLock = keepReadLock) { info =>
       val startTimeMs = System.currentTimeMillis
       var iteratorFromFailedMemoryStorePut: Option[PartiallyUnrolledIterator[T]] = None
@@ -1054,13 +1076,13 @@ private[spark] class BlockManager(
         // We will drop it to disk later if the memory store can't hold it.
         if (level.deserialized) {
 
-          // 数据存入内存
+          // 数据存入内存  如果是序列化的，则为值类型数据，
           memoryStore.putIteratorAsValues(blockId, iterator(), classTag) match {
               // 数据写入内存成功，返回数据块的大小
             case Right(s) =>
               size = s
             case Left(iter) =>
-              // 数据写入到内存失败，如果存储级别设置为写入磁盘，则写入到磁盘中，否则 返回结果
+              // 数据写入到内存失败，如果存储级别设置为写入磁盘，则写入到磁盘中，否则返回结果
               // Not enough space to unroll this block; drop to disk if applicable
               if (level.useDisk) {
                 logWarning(s"Persisting block $blockId to disk instead.")
@@ -1074,6 +1096,7 @@ private[spark] class BlockManager(
               }
           }
         } else { // !level.deserialized
+          // 若没有设置为序列化，则为对象模式，
           memoryStore.putIteratorAsBytes(blockId, iterator(), classTag, level.memoryMode) match {
             case Right(s) =>
               size = s
@@ -1116,6 +1139,7 @@ private[spark] class BlockManager(
         // 如果需要创建副本数据 则根据数据块的编号 获取数据 并复制到其他的节点上
         if (level.replication > 1) {
           val remoteStartTime = System.currentTimeMillis
+          // 获取数据的BlockId 获取数据信息
           val bytesToReplicate = doGetLocalBytes(blockId, info)
           // [SPARK-16550] Erase the typed classTag when using default serialization, since
           // NettyBlockRpcServer crashes when deserializing repl-defined classes.
@@ -1126,6 +1150,7 @@ private[spark] class BlockManager(
             classTag
           }
           try {
+            // 数据副本
             replicate(blockId, bytesToReplicate, level, remoteClassTag)
           } finally {
             bytesToReplicate.dispose()

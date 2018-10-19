@@ -46,6 +46,8 @@ private[spark] class DiskStore(
     diskManager: DiskBlockManager,
     securityManager: SecurityManager) extends Logging {
 
+  // 当从磁盘读取块时，Spark 内存映射的块大小。
+  // 这会阻止 Spark 从内存映射过小的块。 通常，存储器映射对于接近或小于操作系统的页大小的块具有高开销
   private val minMemoryMapBytes = conf.getSizeAsBytes("spark.storage.memoryMapThreshold", "2m")
   private val blockSizes = new ConcurrentHashMap[String, Long]()
 
@@ -68,7 +70,7 @@ private[spark] class DiskStore(
     val out = new CountingWritableChannel(openForWrite(file))
     var threwException: Boolean = true
     try {
-      // 调用回调方法 写入前 需要把值类型数据序列化成数据流
+      // 调用回调方法,写入前需要把值类型数据序列化成数据流
       writeFunc(out)
       blockSizes.put(blockId.name, out.getCount)
       threwException = false

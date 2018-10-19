@@ -66,6 +66,7 @@ abstract class AbstractSqlParser extends ParserInterface with Logging {
 
   /** Creates LogicalPlan for a given SQL string. */
   override def parsePlan(sqlText: String): LogicalPlan = parse(sqlText) { parser =>
+    // astBuilder 是sparkSqlAstBuilder 实例
     astBuilder.visitSingleStatement(parser.singleStatement()) match {
       case plan: LogicalPlan => plan
       case _ =>
@@ -80,10 +81,12 @@ abstract class AbstractSqlParser extends ParserInterface with Logging {
   protected def parse[T](command: String)(toResult: SqlBaseParser => T): T = {
     logInfo(s"Parsing command: $command")
 
+    // 构造词法分析器
     val lexer = new SqlBaseLexer(new ANTLRNoCaseStringStream(command))
     lexer.removeErrorListeners()
     lexer.addErrorListener(ParseErrorListener)
 
+    //  构造token 流
     val tokenStream = new CommonTokenStream(lexer)
     val parser = new SqlBaseParser(tokenStream)
     parser.addParseListener(PostProcessor)

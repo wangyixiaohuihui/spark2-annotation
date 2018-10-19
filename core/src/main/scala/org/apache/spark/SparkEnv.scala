@@ -243,6 +243,7 @@ object SparkEnv extends Logging {
     }
 
     val systemName = if (isDriver) driverSystemName else executorSystemName
+    // 创建rpcEnv driver 或者 executor端, 根据systemName 来区别
     val rpcEnv = RpcEnv.create(systemName, bindAddress, advertiseAddress, port, conf,
       securityManager, clientMode = !isDriver)
 
@@ -310,7 +311,7 @@ object SparkEnv extends Logging {
     }
 
     // Have to assign trackerEndpoint after initialization as MapOutputTrackerEndpoint
-    // requires the MapOutputTracker itself
+    // requires the MapOutputTracker itself  rpcEndpointRef
     mapOutputTracker.trackerEndpoint = registerOrLookupEndpoint(MapOutputTracker.ENDPOINT_NAME,
       new MapOutputTrackerMasterEndpoint(
         rpcEnv, mapOutputTracker.asInstanceOf[MapOutputTrackerMaster], conf))
@@ -339,16 +340,21 @@ object SparkEnv extends Logging {
       conf.get(BLOCK_MANAGER_PORT)
     }
 
+    // 创建数据传输服务
     val blockTransferService =
       new NettyBlockTransferService(conf, securityManager, bindAddress, advertiseAddress,
         blockManagerPort, numUsableCores)
 
+    // 创建BlockManagerMaster  如果是Driver端在BlockManagerMaster内部，则创建终端点BlockManagerMasterEndpoint
+    // 如果是 Executor 则创建BlockManagerMasterEndpoint 的引用
     val blockManagerMaster = new BlockManagerMaster(registerOrLookupEndpoint(
       BlockManagerMaster.DRIVER_ENDPOINT_NAME,
       new BlockManagerMasterEndpoint(rpcEnv, isLocal, conf, listenerBus)),
       conf, isDriver)
 
     // NB: blockManager is not valid until initialize() is called later.
+    // 创建BlockManager， 如果是Driver端包含BlockManagerMaster， 如果是Executor 包含的是BlockManagerMaster的引用
+    //  BlockManagerMaster 包含了远程数据传输服务，当BlockManagerMaster 调用initialize() 方法初始化时真正的生效
     // 此时的 blockManager 还是不可用状态，直到 initialize() 方法被Executor 调用之后
     val blockManager = new BlockManager(executorId, rpcEnv, blockManagerMaster,
       serializerManager, conf, memoryManager, mapOutputTracker, shuffleManager,

@@ -61,6 +61,7 @@ private[spark] class NettyBlockTransferService(
   private[this] var clientFactory: TransportClientFactory = _
   private[this] var appId: String = _
 
+  // 启动BlockTransferServer 服务
   override def init(blockDataManager: BlockDataManager): Unit = {
     val rpcHandler = new NettyBlockRpcServer(conf.getAppId, serializer, blockDataManager)
     var serverBootstrap: Option[TransportServerBootstrap] = None
@@ -86,6 +87,15 @@ private[spark] class NettyBlockTransferService(
     Utils.startServiceOnPort(_port, startService, conf, getClass.getName)._1
   }
 
+  /**
+    * 从远程服务器上获取数据
+    * @param host 远程host
+    * @param port 远程port
+    * @param execId executorId
+    * @param blockIds  blockIds
+    * @param listener
+    * @param shuffleFiles
+    */
   override def fetchBlocks(
       host: String,
       port: Int,
@@ -98,8 +108,9 @@ private[spark] class NettyBlockTransferService(
       val blockFetchStarter = new RetryingBlockFetcher.BlockFetchStarter {
         override def createAndStart(blockIds: Array[String], listener: BlockFetchingListener) {
 
-          // 根据远程 节点的的host  和 port 创建通信客户端
+          // 根据远程 节点的的host  和 port 创建通信客户端 TransportClient
           val client = clientFactory.createClient(host, port)
+          // 通过客户端向指定的节点发送获取数据消息
           new OneForOneBlockFetcher(client, appId, execId, blockIds.toArray, listener,
             transportConf, shuffleFiles).start()
         }
