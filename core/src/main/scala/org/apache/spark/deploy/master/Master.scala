@@ -1108,10 +1108,10 @@ private[deploy] object Master extends Logging {
 
     // spark 安全
     val securityMgr = new SecurityManager(conf)
-    // master中RpcEnv 创建的入口 sparkMaster
+    // master中RpcEnv 创建的入口 sparkMaster-> 'sparkMaster'
     val rpcEnv = RpcEnv.create(SYSTEM_NAME, host, port, conf, securityMgr)
 
-    // 利用之前创建的rpcEnv 来创建RpcEndpoint  返回rpcEndpoint 的ref
+    // 利用之前创建的rpcEnv 来创建RpcEndpoint  返回rpcEndpoint 的ref -> 'Master'
     val masterEndpoint = rpcEnv.setupEndpoint(ENDPOINT_NAME,
       new Master(rpcEnv, rpcEnv.address, webUiPort, securityMgr, conf))
     val portsResponse = masterEndpoint.askSync[BoundPortsResponse](BoundPortsRequest)
