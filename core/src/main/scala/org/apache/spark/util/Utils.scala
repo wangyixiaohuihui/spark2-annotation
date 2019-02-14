@@ -2229,7 +2229,7 @@ private[spark] object Utils extends Logging {
    */
   def startServiceOnPort[T](
       startPort: Int,
-      startService: Int => (T, Int),
+        startService: Int => (T, Int),
       conf: SparkConf,
       serviceName: String = ""): (T, Int) = {
 

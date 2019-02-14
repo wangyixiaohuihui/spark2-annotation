@@ -390,6 +390,7 @@ private[deploy] class Worker(
         }
         registered = true
         changeMaster(masterRef, masterWebUiUrl, masterAddress)
+        // 发送心跳数据给master
         forwordMessageScheduler.scheduleAtFixedRate(new Runnable {
           override def run(): Unit = Utils.tryLogNonFatalError {
             self.send(SendHeartbeat)
@@ -405,6 +406,7 @@ private[deploy] class Worker(
           }, CLEANUP_INTERVAL_MILLIS, CLEANUP_INTERVAL_MILLIS, TimeUnit.MILLISECONDS)
         }
 
+        // 向Master汇报Worker中Executor最新状态
         val execs = executors.values.map { e =>
           new ExecutorDescription(e.appId, e.execId, e.cores, e.state)
         }

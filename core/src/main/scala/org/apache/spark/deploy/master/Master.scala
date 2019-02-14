@@ -243,6 +243,8 @@ private[deploy] class Master(
       } else {
         val worker = new WorkerInfo(id, workerHost, workerPort, cores, memory,
           workerRef, workerWebUiUrl)
+        // registerWorker 方法中注册Worker， 该防范中会把Worker 放到列表中
+        // 用于后续任务时使用
         if (registerWorker(worker)) {
           persistenceEngine.addWorker(worker)
           workerRef.send(RegisteredWorker(self, masterWebUiUrl, masterAddress))
@@ -686,16 +688,19 @@ private[deploy] class Master(
 
   /**
    * Schedule and launch executors on workers
-   *  启动 worker 上  executor App FIFO
+   *  通知Worker启动executor -> App FIFO
    */
   private def startExecutorsOnWorkers(): Unit = {
     // Right now this is a very simple FIFO scheduler. We keep trying to fit in the first app
     // in the queue, then the second app, etc.
+    // 使用FIFO，即先注册的应用先运行
     for (app <- waitingApps if app.coresLeft > 0) {
       // executor 上所需的最小core 数量 默认为1
       val coresPerExecutor: Option[Int] = app.desc.coresPerExecutor
       // Filter out workers that don't have enough resources to launch an executor
-      // live 状态的worker  内存满足的 core数满足的 根据worker 的cores 数量排序
+      // live 状态的worker内存满足的，剩余内存大于等于启动Executor所需的大小，
+      // core数满足的 根据worker 的cores 数量排序
+      //
       val usableWorkers = workers.toArray.filter(_.state == WorkerState.ALIVE)
         .filter(worker => worker.memoryFree >= app.desc.memoryPerExecutorMB &&
           worker.coresFree >= coresPerExecutor.getOrElse(1))
